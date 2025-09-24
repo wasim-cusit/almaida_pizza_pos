@@ -15,7 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'];
     
     if (!empty($username) && !empty($password)) {
-        $query = "SELECT id, name, username, password, role FROM users WHERE username = ? AND is_active = 1";
+        $query = "SELECT u.id, u.name, u.username, u.password, u.role, u.branch_id, u.email, b.name as branch_name 
+                  FROM users u 
+                  LEFT JOIN branches b ON u.branch_id = b.id 
+                  WHERE u.username = ? AND u.is_active = 1";
         $stmt = $db->prepare($query);
         $stmt->execute([$username]);
         $user = $stmt->fetch();
@@ -25,8 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_name'] = $user['name'];
             $_SESSION['user_username'] = $user['username'];
             $_SESSION['user_role'] = $user['role'];
+            $_SESSION['user_email'] = $user['email'];
+            $_SESSION['branch_id'] = $user['branch_id'];
+            $_SESSION['branch_name'] = $user['branch_name'];
             
-            header('Location: index.php');
+            // Redirect based on role
+            if ($user['role'] === 'super_admin') {
+                header('Location: super_admin/index.php');
+            } else {
+                header('Location: index.php');
+            }
             exit();
         } else {
             $error = 'Invalid username or password';

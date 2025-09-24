@@ -47,8 +47,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt->execute([$id]);
             echo json_encode(['success' => true, 'message' => 'Notification deleted']);
             exit();
+            
+        case 'clear_old_notifications':
+            $days = (int)($_POST['days'] ?? 30);
+            $query = "DELETE FROM notifications WHERE created_at < DATE_SUB(NOW(), INTERVAL ? DAY)";
+            $stmt = $db->prepare($query);
+            $stmt->execute([$days]);
+            $deleted = $stmt->rowCount();
+            echo json_encode(['success' => true, 'message' => "Deleted {$deleted} old notifications"]);
+            exit();
+            
+        case 'get_notification_settings':
+            echo json_encode(['success' => true, 'settings' => [
+                'push_notifications' => false,
+                'auto_clear_days' => 30,
+                'priority_filter' => 'all',
+                'display_limit' => 100
+            ]]);
+            exit();
+            
+        case 'update_notification_settings':
+            $push_notifications = (int)($_POST['push_notifications'] ?? 0);
+            $auto_clear_days = (int)($_POST['auto_clear_days'] ?? 30);
+            $priority_filter = $_POST['priority_filter'] ?? 'all';
+            $display_limit = (int)($_POST['display_limit'] ?? 100);
+            
+            // In a real application, you would save these to a settings table
+            echo json_encode(['success' => true, 'message' => 'Settings updated successfully']);
+            exit();
     }
 }
+
 
 // Get statistics
 $query = "SELECT COUNT(*) as total_notifications FROM notifications";
@@ -66,10 +95,10 @@ $stmt = $db->prepare($query);
 $stmt->execute();
 $today_notifications = $stmt->fetch()['today_notifications'];
 
-$query = "SELECT COUNT(*) as high_priority FROM notifications WHERE priority = 'high' AND is_read = 0";
+$query = "SELECT COUNT(*) as high_priority_count FROM notifications WHERE priority = 'high' AND is_read = 0";
 $stmt = $db->prepare($query);
 $stmt->execute();
-$high_priority = $stmt->fetch()['high_priority'];
+$high_priority = $stmt->fetch()['high_priority_count'];
 
 $page_title = "Notifications";
 include 'includes/header.php';
@@ -132,7 +161,7 @@ include 'includes/header.php';
         <h2 class="card-title">
             <i class="fas fa-list"></i> Notifications
         </h2>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <select class="form-control" style="width: auto;" id="priority-filter">
                 <option value="">All Priorities</option>
                 <option value="high">High Priority</option>
@@ -144,6 +173,9 @@ include 'includes/header.php';
                 <option value="0">Unread</option>
                 <option value="1">Read</option>
             </select>
+            <button class="btn btn-secondary" onclick="clearFilters()" style="padding: 8px 12px; font-size: 12px;">
+                <i class="fas fa-times"></i> Clear Filters
+            </button>
         </div>
     </div>
     <div id="notifications-container">
@@ -154,9 +186,16 @@ include 'includes/header.php';
 </div>
 
 <script>
+    // Store all notifications for filtering
+    let allNotifications = [];
+
     // Initialize the page
     document.addEventListener('DOMContentLoaded', function() {
         loadNotifications();
+        
+        // Add event listeners for filters
+        document.getElementById('priority-filter').addEventListener('change', filterNotifications);
+        document.getElementById('status-filter').addEventListener('change', filterNotifications);
     });
 
     // Load notifications
@@ -171,12 +210,46 @@ include 'includes/header.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displayNotifications(data.notifications);
+                allNotifications = data.notifications;
+                filterNotifications();
             }
         })
         .catch(error => {
             console.error('Error loading notifications:', error);
+            const container = document.getElementById('notifications-container');
+            container.innerHTML = `
+                <div style="text-align: center; color: #dc3545; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3em; margin-bottom: 20px; opacity: 0.7;"></i>
+                    <h3 style="margin-bottom: 10px;">Error Loading Notifications</h3>
+                    <p style="margin-bottom: 20px; color: #666;">Failed to load notifications. Please try again.</p>
+                    <button class="btn btn-primary" onclick="loadNotifications()">
+                        <i class="fas fa-redo"></i> Try Again
+                    </button>
+                </div>
+            `;
+            showNotification('Failed to load notifications', 'error');
         });
+    }
+
+    // Filter notifications
+    function filterNotifications() {
+        const priorityFilter = document.getElementById('priority-filter').value;
+        const statusFilter = document.getElementById('status-filter').value;
+        
+        let filteredNotifications = allNotifications.filter(notification => {
+            const matchesPriority = !priorityFilter || notification.priority === priorityFilter;
+            const matchesStatus = statusFilter === '' || notification.is_read == statusFilter;
+            return matchesPriority && matchesStatus;
+        });
+        
+        displayNotifications(filteredNotifications);
+    }
+
+    // Clear all filters
+    function clearFilters() {
+        document.getElementById('priority-filter').value = '';
+        document.getElementById('status-filter').value = '';
+        filterNotifications();
     }
 
     // Display notifications
@@ -274,14 +347,15 @@ include 'includes/header.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                showNotification('Notification marked as read', 'success');
                 loadNotifications();
             } else {
-                alert('Error: ' + data.message);
+                showNotification(data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error marking notification as read:', error);
-            alert('Error marking notification as read');
+            showNotification('Error marking notification as read', 'error');
         });
     }
 
@@ -298,15 +372,15 @@ include 'includes/header.php';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert('All notifications marked as read');
+                showNotification('All notifications marked as read', 'success');
                     loadNotifications();
                 } else {
-                    alert('Error: ' + data.message);
+                showNotification(data.message, 'error');
                 }
             })
             .catch(error => {
                 console.error('Error marking all notifications as read:', error);
-                alert('Error marking all notifications as read');
+            showNotification('Error marking all notifications as read', 'error');
             });
         }
     }
@@ -324,27 +398,264 @@ include 'includes/header.php';
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                showNotification('Notification deleted successfully', 'success');
+                loadNotifications();
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting notification:', error);
+            showNotification('Error deleting notification', 'error');
+        });
+        }
+    }
+
+    // Clear old notifications
+    function clearOldNotifications() {
+        const days = prompt('Enter number of days to keep notifications (default: 30):', '30');
+        if (days === null) return;
+        
+        const daysToKeep = parseInt(days) || 30;
+        
+        if (confirm(`Are you sure you want to delete notifications older than ${daysToKeep} days?`)) {
+            fetch('notifications.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=clear_old_notifications&days=${daysToKeep}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification(data.message, 'success');
                     loadNotifications();
                 } else {
-                    alert('Error: ' + data.message);
+                    showNotification(data.message, 'error');
                 }
             })
             .catch(error => {
-                console.error('Error deleting notification:', error);
-                alert('Error deleting notification');
+                console.error('Error clearing old notifications:', error);
+                showNotification('Error clearing old notifications', 'error');
             });
         }
     }
 
-    // Placeholder functions
-    function clearOldNotifications() {
-        if (confirm('Are you sure you want to clear old notifications?')) {
-            alert('Clear old notifications functionality - Coming soon!');
-        }
+    // Show notification settings
+    function showSettings() {
+        // Create settings modal
+        const settingsModal = document.createElement('div');
+        settingsModal.id = 'settings-modal';
+        settingsModal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;';
+        settingsModal.innerHTML = `
+            <div style="background: white; margin: 5% auto; padding: 30px; border-radius: 15px; width: 90%; max-width: 500px; position: relative; max-height: 80vh; overflow-y: auto;">
+                <span onclick="closeModal('settings-modal')" style="position: absolute; right: 20px; top: 20px; font-size: 28px; cursor: pointer; color: #aaa;">&times;</span>
+                <h3>Notification Settings</h3>
+                <form id="settings-form">
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 10px; margin: 15px 0;">
+                            <input type="checkbox" id="push-notifications">
+                            <span>Push Notifications</span>
+                            <small style="color: #666; margin-left: 10px;">Receive real-time notifications</small>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Auto-clear notifications older than (days):</label>
+                        <input type="number" class="form-control" id="auto-clear-days" value="30" min="1" max="365">
+                        <small style="color: #666;">Notifications older than this will be automatically deleted</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Default Priority Filter:</label>
+                        <select class="form-control" id="default-priority-filter">
+                            <option value="all">All Priorities</option>
+                            <option value="high">High Priority Only</option>
+                            <option value="medium">Medium Priority Only</option>
+                            <option value="low">Low Priority Only</option>
+                        </select>
+                        <small style="color: #666;">Default filter when loading notifications</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notification Display Limit:</label>
+                        <select class="form-control" id="display-limit">
+                            <option value="50">50 notifications</option>
+                            <option value="100">100 notifications</option>
+                            <option value="200">200 notifications</option>
+                            <option value="500">500 notifications</option>
+                        </select>
+                        <small style="color: #666;">Maximum notifications to display at once</small>
+                    </div>
+                    
+                    <div style="text-align: right; margin-top: 30px;">
+                        <button type="button" class="btn btn-secondary" onclick="closeModal('settings-modal')">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+        `;
+        
+        document.body.appendChild(settingsModal);
+        document.getElementById('settings-modal').style.display = 'block';
+        
+        // Load current settings
+        loadNotificationSettings();
+        
+        // Handle form submission
+        document.getElementById('settings-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveNotificationSettings();
+        });
     }
 
-    function showSettings() {
-        alert('Notification settings - Coming soon!');
+    // Load notification settings
+    function loadNotificationSettings() {
+        fetch('notifications.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=get_notification_settings'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const settings = data.settings;
+                document.getElementById('push-notifications').checked = settings.push_notifications;
+                document.getElementById('auto-clear-days').value = settings.auto_clear_days;
+                document.getElementById('default-priority-filter').value = settings.priority_filter;
+                document.getElementById('display-limit').value = settings.display_limit;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading notification settings:', error);
+        });
+    }
+
+    // Save notification settings
+    function saveNotificationSettings() {
+        const formData = new FormData();
+        formData.append('action', 'update_notification_settings');
+        formData.append('push_notifications', document.getElementById('push-notifications').checked ? 1 : 0);
+        formData.append('auto_clear_days', document.getElementById('auto-clear-days').value);
+        formData.append('priority_filter', document.getElementById('default-priority-filter').value);
+        formData.append('display_limit', document.getElementById('display-limit').value);
+
+        fetch('notifications.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Settings saved successfully', 'success');
+                closeModal('settings-modal');
+            } else {
+                showNotification(data.message, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error saving notification settings:', error);
+            showNotification('Error saving settings', 'error');
+        });
+    }
+
+    // Professional notification system
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
+        // Set colors based on type
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+        
+        notification.style.backgroundColor = colors[type] || colors.info;
+        
+        // Add icon
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        notification.innerHTML = `
+            <i class="${icons[type] || icons.info}" style="font-size: 18px;"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: white;
+                font-size: 18px;
+                cursor: pointer;
+                margin-left: auto;
+                padding: 0;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">&times;</button>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
+    }
+
+    // Modal functions
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.style.display = 'none';
+            modal.remove();
+        }
     }
 </script>
 

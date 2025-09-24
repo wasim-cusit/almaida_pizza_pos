@@ -14,11 +14,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     
     switch ($_POST['action']) {
         case 'get_settings':
-            $query = "SELECT * FROM system_settings";
-            $stmt = $db->prepare($query);
-            $stmt->execute();
-            $settings = $stmt->fetchAll();
-            echo json_encode(['success' => true, 'settings' => $settings]);
+            try {
+                // Check if system_settings table exists, if not create it
+                $query = "CREATE TABLE IF NOT EXISTS system_settings (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    setting_key VARCHAR(100) UNIQUE NOT NULL,
+                    setting_value TEXT,
+                    updated_by INT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                )";
+                $db->exec($query);
+                
+                // Get existing settings
+                $query = "SELECT setting_key, setting_value FROM system_settings";
+                $stmt = $db->prepare($query);
+                $stmt->execute();
+                $settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+                
+                // Define default settings
+                $defaultSettings = [
+                    'company_name' => 'Almaida POS',
+                    'company_email' => 'admin@almaida.com',
+                    'company_phone' => '+1-555-0123',
+                    'company_address' => '123 Business St, City, State',
+                    'currency' => 'USD',
+                    'timezone' => 'UTC',
+                    'low_stock_threshold' => '20',
+                    'auto_reorder_point' => '10',
+                    'stock_alert_email' => 'alerts@almaida.com',
+                    'stock_alert_frequency' => 'daily',
+                    'auto_stock_alerts' => '1',
+                    'low_stock_notifications' => '1',
+                    'email_stock_alerts' => '1',
+                    'email_order_notifications' => '1',
+                    'email_system_alerts' => '1',
+                    'email_reports' => '1',
+                    'sms_critical_alerts' => '0',
+                    'sms_system_down' => '0',
+                    'notification_email' => 'notifications@almaida.com',
+                    'admin_email' => 'admin@almaida.com',
+                    'session_timeout' => '30',
+                    'max_login_attempts' => '5',
+                    'password_min_length' => '8',
+                    'password_expiry' => '90',
+                    'require_strong_passwords' => '1',
+                    'two_factor_auth' => '0',
+                    'audit_logging' => '1'
+                ];
+                
+                // Merge with existing settings
+                $mergedSettings = array_merge($defaultSettings, $settings);
+                
+                // Insert missing settings
+                foreach ($defaultSettings as $key => $value) {
+                    if (!isset($settings[$key])) {
+                        $query = "INSERT INTO system_settings (setting_key, setting_value, updated_by) VALUES (?, ?, ?)";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$key, $value, $_SESSION['user_id']]);
+                    }
+                }
+                
+                echo json_encode(['success' => true, 'settings' => $mergedSettings]);
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error loading settings: ' . $e->getMessage()]);
+            }
             exit();
             
         case 'update_settings':
@@ -40,6 +100,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } catch (Exception $e) {
                 $db->rollBack();
                 echo json_encode(['success' => false, 'message' => 'Error updating settings: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'export_settings':
+            try {
+                $query = "SELECT setting_key, setting_value FROM system_settings ORDER BY setting_key";
+                $stmt = $db->prepare($query);
+                $stmt->execute();
+                $settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+                
+                $exportData = [
+                    'export_date' => date('Y-m-d H:i:s'),
+                    'exported_by' => $_SESSION['user_id'],
+                    'settings' => $settings
+                ];
+                
+                header('Content-Type: application/json');
+                header('Content-Disposition: attachment; filename="settings_export_' . date('Y-m-d') . '.json"');
+                echo json_encode($exportData, JSON_PRETTY_PRINT);
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error exporting settings: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'reset_to_defaults':
+            try {
+                $db->beginTransaction();
+                
+                // Delete all existing settings
+                $query = "DELETE FROM system_settings";
+                $db->exec($query);
+                
+                // Define default settings
+                $defaultSettings = [
+                    'company_name' => 'Almaida POS',
+                    'company_email' => 'admin@almaida.com',
+                    'company_phone' => '+1-555-0123',
+                    'company_address' => '123 Business St, City, State',
+                    'currency' => 'USD',
+                    'timezone' => 'UTC',
+                    'low_stock_threshold' => '20',
+                    'auto_reorder_point' => '10',
+                    'stock_alert_email' => 'alerts@almaida.com',
+                    'stock_alert_frequency' => 'daily',
+                    'auto_stock_alerts' => '1',
+                    'low_stock_notifications' => '1',
+                    'email_stock_alerts' => '1',
+                    'email_order_notifications' => '1',
+                    'email_system_alerts' => '1',
+                    'email_reports' => '1',
+                    'sms_critical_alerts' => '0',
+                    'sms_system_down' => '0',
+                    'notification_email' => 'notifications@almaida.com',
+                    'admin_email' => 'admin@almaida.com',
+                    'session_timeout' => '30',
+                    'max_login_attempts' => '5',
+                    'password_min_length' => '8',
+                    'password_expiry' => '90',
+                    'require_strong_passwords' => '1',
+                    'two_factor_auth' => '0',
+                    'audit_logging' => '1'
+                ];
+                
+                // Insert default settings
+                $query = "INSERT INTO system_settings (setting_key, setting_value, updated_by) VALUES (?, ?, ?)";
+                $stmt = $db->prepare($query);
+                foreach ($defaultSettings as $key => $value) {
+                    $stmt->execute([$key, $value, $_SESSION['user_id']]);
+                }
+                
+                $db->commit();
+                echo json_encode(['success' => true, 'message' => 'Settings reset to defaults successfully']);
+            } catch (Exception $e) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Error resetting settings: ' . $e->getMessage()]);
             }
             exit();
     }
@@ -250,6 +385,12 @@ include 'includes/header.php';
     </div>
 
     <div style="text-align: right; margin-top: 30px; padding-top: 20px; border-top: 1px solid var(--light-border);">
+        <button class="btn btn-info" onclick="exportSettings()">
+            <i class="fas fa-download"></i> Export Settings
+        </button>
+        <button class="btn btn-warning" onclick="importSettings()">
+            <i class="fas fa-upload"></i> Import Settings
+        </button>
         <button class="btn btn-secondary" onclick="resetSettings()">
             <i class="fas fa-undo"></i> Reset to Defaults
         </button>
@@ -288,6 +429,9 @@ include 'includes/header.php';
         </div>
     </div>
 </div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="import-file" accept=".json" style="display: none;" onchange="handleImportFile(event)">
 
 <script>
     // Initialize the page
@@ -332,56 +476,264 @@ include 'includes/header.php';
         })
         .catch(error => {
             console.error('Error loading settings:', error);
+            showNotification('Failed to load settings', 'error');
         });
     }
 
+    // Global settings storage
+    let currentSettings = {};
+
     // Populate settings forms
     function populateSettings(settings) {
-        // This would populate the forms with actual settings data
-        // For now, we'll use the default values in the HTML
+        currentSettings = settings;
+        
+        // Populate all forms with settings data
+        Object.keys(settings).forEach(key => {
+            const elements = document.querySelectorAll(`[name="${key}"]`);
+            elements.forEach(element => {
+                if (element.type === 'checkbox') {
+                    element.checked = settings[key] === '1' || settings[key] === 'true';
+                } else {
+                    element.value = settings[key];
+                }
+            });
+        });
     }
 
     // Save settings
     function saveSettings() {
-        const activeTab = document.querySelector('.settings-tab:not([style*="display: none"])');
-        const form = activeTab.querySelector('form');
-        const formData = new FormData(form);
-        const settings = {};
+        const allSettings = {};
         
-        for (let [key, value] of formData.entries()) {
-            settings[key] = value;
-        }
+        // Collect settings from all forms
+        document.querySelectorAll('form').forEach(form => {
+            const formData = new FormData(form);
+            for (let [key, value] of formData.entries()) {
+                allSettings[key] = value;
+            }
+        });
+        
+        // Handle checkboxes that might not be in FormData
+        document.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            if (!allSettings.hasOwnProperty(checkbox.name)) {
+                allSettings[checkbox.name] = checkbox.checked ? '1' : '0';
+            }
+        });
         
         fetch('settings.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: `action=update_settings&settings=${encodeURIComponent(JSON.stringify(settings))}`
+            body: `action=update_settings&settings=${encodeURIComponent(JSON.stringify(allSettings))}`
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Settings saved successfully');
+                showNotification('Settings saved successfully', 'success');
+                loadSettings(); // Reload to get updated values
             } else {
-                alert('Error: ' + data.message);
+                showNotification(data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error saving settings:', error);
-            alert('Error saving settings');
+            showNotification('Error saving settings', 'error');
         });
     }
 
     // Reset settings
     function resetSettings() {
         if (confirm('Are you sure you want to reset all settings to defaults? This action cannot be undone.')) {
-            // Reset all forms to default values
-            document.querySelectorAll('form').forEach(form => {
-                form.reset();
+            fetch('settings.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'action=reset_to_defaults'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Settings reset to defaults', 'success');
+                    loadSettings();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error resetting settings:', error);
+                showNotification('Error resetting settings', 'error');
             });
-            alert('Settings reset to defaults');
         }
+    }
+
+    // Export settings
+    function exportSettings() {
+        fetch('settings.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=export_settings'
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.blob();
+            }
+            throw new Error('Export failed');
+        })
+        .then(blob => {
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `settings_export_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            showNotification('Settings exported successfully', 'success');
+        })
+        .catch(error => {
+            console.error('Error exporting settings:', error);
+            showNotification('Error exporting settings', 'error');
+        });
+    }
+
+    // Import settings
+    function importSettings() {
+        document.getElementById('import-file').click();
+    }
+
+    // Handle import file
+    function handleImportFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (data.settings) {
+                    // Import settings
+                    const settings = data.settings;
+                    
+                    fetch('settings.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `action=update_settings&settings=${encodeURIComponent(JSON.stringify(settings))}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            showNotification('Settings imported successfully', 'success');
+                            loadSettings();
+                        } else {
+                            showNotification(data.message, 'error');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error importing settings:', error);
+                        showNotification('Error importing settings', 'error');
+                    });
+                } else {
+                    showNotification('Invalid settings file format', 'error');
+                }
+            } catch (error) {
+                console.error('Error parsing settings file:', error);
+                showNotification('Error parsing settings file', 'error');
+            }
+        };
+        reader.readAsText(file);
+        
+        // Reset file input
+        event.target.value = '';
+    }
+
+    // Professional notification system
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
+        // Set colors based on type
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+        
+        notification.style.backgroundColor = colors[type] || colors.info;
+        
+        // Add icon
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        notification.innerHTML = `
+            <i class="${icons[type] || icons.info}" style="font-size: 18px;"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: white;
+                font-size: 18px;
+                cursor: pointer;
+                margin-left: auto;
+                padding: 0;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">&times;</button>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
     }
 </script>
 

@@ -122,6 +122,7 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'super_admin') {
         .nav-link.active {
             background: rgba(255, 255, 255, 0.2);
             border-right: 3px solid white;
+            font-weight: 600;
         }
 
         .nav-link i {
@@ -567,43 +568,70 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'super_admin') {
         </div>
         
         <div class="sidebar-nav">
+            <!-- Dashboard -->
             <div class="nav-item">
-                <a href="index.php" class="nav-link" data-page="dashboard">
+                <a href="index.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'index.php') ? 'active' : ''; ?>" data-page="dashboard">
                     <i class="fas fa-tachometer-alt"></i>
                     <span>Dashboard</span>
                 </a>
             </div>
             
+            <!-- Branch Management -->
             <div class="nav-item">
-                <a href="stock_management.php" class="nav-link" data-page="stock-management">
-                    <i class="fas fa-boxes"></i>
-                    <span>Stock Management</span>
+                <a href="manage_branches.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'manage_branches.php') ? 'active' : ''; ?>" data-page="manage-branches">
+                    <i class="fas fa-building"></i>
+                    <span>Manage Branches</span>
                 </a>
             </div>
             
+            <!-- Suppliers Management -->
             <div class="nav-item">
-                <a href="stock_purchases.php" class="nav-link" data-page="stock-purchases">
+                <a href="suppliers.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'suppliers.php') ? 'active' : ''; ?>" data-page="suppliers">
+                    <i class="fas fa-truck-loading"></i>
+                    <span>Manage Suppliers</span>
+                </a>
+            </div>
+            
+            <!-- Stock Management Workflow -->
+            <div class="nav-item">
+                <a href="stock_purchases.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'stock_purchases.php') ? 'active' : ''; ?>" data-page="stock-purchases">
                     <i class="fas fa-shopping-cart"></i>
                     <span>Stock Purchases</span>
                 </a>
             </div>
             
             <div class="nav-item">
-                <a href="stock_distributions.php" class="nav-link" data-page="stock-distributions">
+                <a href="warehouse_stock.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'warehouse_stock.php') ? 'active' : ''; ?>" data-page="warehouse-stock">
+                    <i class="fas fa-warehouse"></i>
+                    <span>Warehouse Stock</span>
+                </a>
+            </div>
+            
+            <div class="nav-item">
+                <a href="stock_distributions.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'stock_distributions.php') ? 'active' : ''; ?>" data-page="stock-distributions">
                     <i class="fas fa-truck"></i>
                     <span>Stock Distribution</span>
                 </a>
             </div>
             
             <div class="nav-item">
-                <a href="manage_branches.php" class="nav-link" data-page="manage-branches">
-                    <i class="fas fa-building"></i>
-                    <span>Manage Branches</span>
+                <a href="stock_management.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'stock_management.php') ? 'active' : ''; ?>" data-page="stock-management">
+                    <i class="fas fa-boxes"></i>
+                    <span>Stock Management</span>
                 </a>
             </div>
             
+            <!-- Reports & Analytics -->
             <div class="nav-item">
-                <a href="notifications.php" class="nav-link" data-page="notifications">
+                <a href="stock_reports.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'stock_reports.php') ? 'active' : ''; ?>" data-page="stock-reports">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Stock Reports</span>
+                </a>
+            </div>
+            
+            <!-- Notifications -->
+            <div class="nav-item">
+                <a href="notifications.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'notifications.php') ? 'active' : ''; ?>" data-page="notifications">
                     <i class="fas fa-bell"></i>
                     <span>Notifications</span>
                     <?php if (isset($unread_notifications) && $unread_notifications > 0): ?>
@@ -612,34 +640,15 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'super_admin') {
                 </a>
             </div>
             
+            <!-- System Settings -->
             <div class="nav-item">
-                <a href="stock_reports.php" class="nav-link" data-page="stock-reports">
-                    <i class="fas fa-chart-bar"></i>
-                    <span>Stock Reports</span>
-                </a>
-            </div>
-            
-            <div class="nav-item">
-                <a href="suppliers.php" class="nav-link" data-page="suppliers">
-                    <i class="fas fa-truck-loading"></i>
-                    <span>Manage Suppliers</span>
-                </a>
-            </div>
-            
-            <div class="nav-item">
-                <a href="warehouse_stock.php" class="nav-link" data-page="warehouse-stock">
-                    <i class="fas fa-warehouse"></i>
-                    <span>Warehouse Stock</span>
-                </a>
-            </div>
-            
-            <div class="nav-item">
-                <a href="settings.php" class="nav-link" data-page="settings">
+                <a href="settings.php" class="nav-link <?php echo (basename($_SERVER['PHP_SELF']) == 'settings.php') ? 'active' : ''; ?>" data-page="settings">
                     <i class="fas fa-cog"></i>
                     <span>System Settings</span>
                 </a>
             </div>
             
+            <!-- Logout -->
             <div class="nav-item" style="margin-top: 20px;">
                 <a href="../logout.php" class="nav-link" style="color: #ff6b6b;">
                     <i class="fas fa-sign-out-alt"></i>

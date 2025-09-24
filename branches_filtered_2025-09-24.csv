@@ -1,0 +1,3 @@
+id,name,address,phone,email,manager_name,is_active,created_at,updated_at,manager_phone
+1,Main Branch,Commercial Market #1 OPF Colony Peshawar,091-2614488,main@almaida.com,Branch Manager,1,2025-09-24 14:50:01,2025-09-24 23:19:30,
+5,wasim,uk,033423772,muhammadwasim.cusit@gmail.com,MUHAMMAD,1,2025-09-24 23:22:23,2025-09-24 23:22:23,03342332323

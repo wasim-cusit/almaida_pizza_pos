@@ -75,6 +75,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo json_encode(['success' => false, 'message' => 'Error deactivating supplier: ' . $e->getMessage()]);
             }
             exit();
+            
+        case 'get_supplier':
+            $id = (int)$_POST['id'];
+            
+            try {
+                $query = "SELECT * FROM suppliers WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$id]);
+                $supplier = $stmt->fetch();
+                
+                if ($supplier) {
+                    echo json_encode(['success' => true, 'supplier' => $supplier]);
+                } else {
+                    echo json_encode(['success' => false, 'message' => 'Supplier not found']);
+                }
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error fetching supplier: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'toggle_supplier_status':
+            $id = (int)$_POST['id'];
+            $status = (int)$_POST['status'];
+            
+            try {
+                $query = "UPDATE suppliers SET is_active = ? WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$status, $id]);
+                
+                $status_text = $status ? 'activated' : 'deactivated';
+                echo json_encode(['success' => true, 'message' => "Supplier {$status_text} successfully"]);
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error updating supplier status: ' . $e->getMessage()]);
+            }
+            exit();
     }
 }
 
@@ -162,12 +197,15 @@ include 'includes/header.php';
         <h2 class="card-title">
             <i class="fas fa-list"></i> Suppliers
         </h2>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <select class="form-control" style="width: auto;" id="status-filter">
                 <option value="">All Suppliers</option>
                 <option value="1">Active Only</option>
                 <option value="0">Inactive Only</option>
             </select>
+            <button class="btn btn-secondary" onclick="clearFilters()" style="padding: 8px 12px; font-size: 12px;">
+                <i class="fas fa-times"></i> Clear Filters
+            </button>
         </div>
     </div>
     <div id="suppliers-container">
@@ -240,9 +278,15 @@ include 'includes/header.php';
 </div>
 
 <script>
+    // Store all suppliers for filtering
+    let allSuppliers = [];
+
     // Initialize the page
     document.addEventListener('DOMContentLoaded', function() {
         loadSuppliers();
+        
+        // Add event listener for status filter
+        document.getElementById('status-filter').addEventListener('change', filterSuppliers);
     });
 
     // Load suppliers
@@ -257,12 +301,43 @@ include 'includes/header.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                displaySuppliers(data.suppliers);
+                allSuppliers = data.suppliers;
+                filterSuppliers();
             }
         })
         .catch(error => {
             console.error('Error loading suppliers:', error);
+            const container = document.getElementById('suppliers-container');
+            container.innerHTML = `
+                <div style="text-align: center; color: #dc3545; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3em; margin-bottom: 20px; opacity: 0.7;"></i>
+                    <h3 style="margin-bottom: 10px;">Error Loading Suppliers</h3>
+                    <p style="margin-bottom: 20px; color: #666;">Failed to load suppliers. Please try again.</p>
+                    <button class="btn btn-primary" onclick="loadSuppliers()">
+                        <i class="fas fa-redo"></i> Try Again
+                    </button>
+                </div>
+            `;
+            showNotification('Failed to load suppliers', 'error');
         });
+    }
+
+    // Filter suppliers
+    function filterSuppliers() {
+        const statusFilter = document.getElementById('status-filter').value;
+        
+        let filteredSuppliers = allSuppliers.filter(supplier => {
+            const matchesStatus = statusFilter === '' || supplier.is_active == statusFilter;
+            return matchesStatus;
+        });
+        
+        displaySuppliers(filteredSuppliers);
+    }
+
+    // Clear all filters
+    function clearFilters() {
+        document.getElementById('status-filter').value = '';
+        filterSuppliers();
     }
 
     // Display suppliers
@@ -329,48 +404,65 @@ include 'includes/header.php';
 
     // Edit supplier
     function editSupplier(supplierId) {
-        // Find supplier data (in real app, you'd fetch this)
-        const suppliers = []; // This would be populated from the server
-        const supplier = suppliers.find(s => s.id === supplierId);
-        
-        if (supplier) {
+        // Fetch supplier data from server
+        fetch('suppliers.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `action=get_supplier&id=${supplierId}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const supplier = data.supplier;
+                
             document.getElementById('modal-title').textContent = 'Edit Supplier';
             document.getElementById('supplier-id').value = supplier.id;
             document.getElementById('supplier-name').value = supplier.name;
             document.getElementById('contact-person').value = supplier.contact_person;
             document.getElementById('supplier-phone').value = supplier.phone;
-            document.getElementById('supplier-email').value = supplier.email;
+                document.getElementById('supplier-email').value = supplier.email || '';
             document.getElementById('supplier-address').value = supplier.address;
-            document.getElementById('payment-terms').value = supplier.payment_terms;
+                document.getElementById('payment-terms').value = supplier.payment_terms || 'Net 30';
             document.getElementById('supplier-status').value = supplier.is_active;
             document.getElementById('status-group').style.display = 'block';
             document.getElementById('supplier-modal').style.display = 'block';
+            } else {
+                showNotification(data.message, 'error');
         }
+        })
+        .catch(error => {
+            console.error('Error fetching supplier:', error);
+            showNotification('Error loading supplier data', 'error');
+        });
     }
 
     // Toggle supplier status
     function toggleSupplierStatus(supplierId, currentStatus) {
         const action = currentStatus ? 'deactivate' : 'activate';
+        const newStatus = currentStatus ? 0 : 1;
+        
         if (confirm(`Are you sure you want to ${action} this supplier?`)) {
             fetch('suppliers.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `action=delete_supplier&id=${supplierId}`
+                body: `action=toggle_supplier_status&id=${supplierId}&status=${newStatus}`
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    alert(`Supplier ${action}d successfully`);
+                    showNotification(`Supplier ${action}d successfully`, 'success');
                     loadSuppliers();
                 } else {
-                    alert('Error: ' + data.message);
+                    showNotification(data.message, 'error');
                 }
             })
             .catch(error => {
                 console.error(`Error ${action}ing supplier:`, error);
-                alert(`Error ${action}ing supplier`);
+                showNotification(`Error ${action}ing supplier`, 'error');
             });
         }
     }
@@ -405,16 +497,16 @@ include 'includes/header.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Supplier saved successfully');
+                showNotification('Supplier saved successfully', 'success');
                 closeModal('supplier-modal');
                 loadSuppliers();
             } else {
-                alert('Error: ' + data.message);
+                showNotification(data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error saving supplier:', error);
-            alert('Error saving supplier');
+            showNotification('Error saving supplier', 'error');
         });
     });
 
@@ -433,13 +525,227 @@ include 'includes/header.php';
         });
     }
 
-    // Placeholder functions
-    function exportSuppliers() {
-        alert('Export functionality - Coming soon!');
+    // Professional notification system
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
+        // Set colors based on type
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+        
+        notification.style.backgroundColor = colors[type] || colors.info;
+        
+        // Add icon
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        notification.innerHTML = `
+            <i class="${icons[type] || icons.info}" style="font-size: 18px;"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: white;
+                font-size: 18px;
+                cursor: pointer;
+                margin-left: auto;
+                padding: 0;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">&times;</button>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
     }
 
+    // Export suppliers to CSV
+    function exportSuppliers() {
+        if (allSuppliers.length === 0) {
+            showNotification('No suppliers to export', 'warning');
+            return;
+        }
+        
+        const headers = ['Name', 'Contact Person', 'Phone', 'Email', 'Address', 'Payment Terms', 'Status', 'Created At'];
+        let csvContent = headers.join(',') + '\n';
+        
+        allSuppliers.forEach(supplier => {
+            const row = [
+                `"${supplier.name}"`,
+                `"${supplier.contact_person}"`,
+                `"${supplier.phone}"`,
+                `"${supplier.email || ''}"`,
+                `"${supplier.address}"`,
+                `"${supplier.payment_terms || ''}"`,
+                `"${supplier.is_active ? 'Active' : 'Inactive'}"`,
+                `"${supplier.created_at}"`
+            ];
+            csvContent += row.join(',') + '\n';
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `suppliers_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('Suppliers exported successfully', 'success');
+    }
+
+    // Show supplier reports
     function showReports() {
-        alert('Reports functionality - Coming soon!');
+        // Create a simple report modal
+        const reportModal = document.createElement('div');
+        reportModal.id = 'report-modal';
+        reportModal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;';
+        reportModal.innerHTML = `
+            <div style="background: white; margin: 5% auto; padding: 30px; border-radius: 15px; width: 90%; max-width: 600px; position: relative; max-height: 80vh; overflow-y: auto;">
+                <span onclick="closeModal('report-modal')" style="position: absolute; right: 20px; top: 20px; font-size: 28px; cursor: pointer; color: #aaa;">&times;</span>
+                <h3>Supplier Reports</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+                    <button class="btn btn-primary" onclick="generateSupplierReport('summary')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-chart-pie" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Summary Report</div>
+                    </button>
+                    <button class="btn btn-info" onclick="generateSupplierReport('active')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-check-circle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Active Suppliers</div>
+                    </button>
+                    <button class="btn btn-warning" onclick="generateSupplierReport('inactive')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-times-circle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Inactive Suppliers</div>
+                    </button>
+                    <button class="btn btn-success" onclick="generateSupplierReport('purchases')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-shopping-cart" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Purchase History</div>
+                    </button>
+                </div>
+                <div id="supplier-report-content" style="margin-top: 20px; padding: 20px; background: #f8fafc; border-radius: 8px;">
+                    <p style="text-align: center; color: #666;">Select a report type above</p>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(reportModal);
+        document.getElementById('report-modal').style.display = 'block';
+    }
+
+    // Generate supplier report
+    function generateSupplierReport(type) {
+        const content = document.getElementById('supplier-report-content');
+        content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Generating report...</div>';
+        
+        setTimeout(() => {
+            let reportHTML = '';
+            
+            switch(type) {
+                case 'summary':
+                    const activeCount = allSuppliers.filter(s => s.is_active).length;
+                    const inactiveCount = allSuppliers.filter(s => !s.is_active).length;
+                    reportHTML = `
+                        <h4>Supplier Summary Report</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold; color: #1976d2;">${allSuppliers.length}</div>
+                                <div>Total Suppliers</div>
+                            </div>
+                            <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold; color: #388e3c;">${activeCount}</div>
+                                <div>Active Suppliers</div>
+                            </div>
+                            <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold; color: #f57c00;">${inactiveCount}</div>
+                                <div>Inactive Suppliers</div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'active':
+                    const activeSuppliers = allSuppliers.filter(s => s.is_active);
+                    reportHTML = `
+                        <h4>Active Suppliers Report</h4>
+                        <ul style="margin: 20px 0; padding-left: 20px;">
+                            ${activeSuppliers.map(s => `<li>${s.name} - ${s.contact_person} (${s.phone})</li>`).join('')}
+                        </ul>
+                    `;
+                    break;
+                case 'inactive':
+                    const inactiveSuppliers = allSuppliers.filter(s => !s.is_active);
+                    reportHTML = `
+                        <h4>Inactive Suppliers Report</h4>
+                        <ul style="margin: 20px 0; padding-left: 20px;">
+                            ${inactiveSuppliers.map(s => `<li>${s.name} - ${s.contact_person} (${s.phone})</li>`).join('')}
+                        </ul>
+                    `;
+                    break;
+                case 'purchases':
+                    reportHTML = `
+                        <h4>Purchase History Report</h4>
+                        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <p><strong>Note:</strong> Purchase history data would be integrated with the stock purchases system.</p>
+                            <p>This report would show purchase history by supplier, including total amounts, frequency, and recent activity.</p>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            content.innerHTML = reportHTML;
+        }, 1000);
     }
 </script>
 

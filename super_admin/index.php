@@ -63,65 +63,65 @@ include 'includes/header.php';
 ?>
 
 <!-- Statistics -->
-<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px;">
-    <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-            <div style="width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5em; color: white; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));">
+<div style="display: grid; grid-template-columns: repeat(7, 1fr); gap: 15px; margin-bottom: 30px;" class="stats-grid">
+    <div class="card" style="padding: 15px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: white; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));">
                 <i class="fas fa-building"></i>
             </div>
         </div>
-        <div style="font-size: 2.5em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $total_branches; ?></div>
-        <div style="color: var(--light-text); font-size: 0.9em; opacity: 0.8;">Active Branches</div>
+        <div style="font-size: 2em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $total_branches; ?></div>
+        <div style="color: var(--light-text); font-size: 0.8em; opacity: 0.8;">Active Branches</div>
     </div>
     
-    <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-            <div style="width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5em; color: white; background: linear-gradient(135deg, var(--success-color), #16a34a);">
+    <div class="card" style="padding: 15px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: white; background: linear-gradient(135deg, var(--success-color), #16a34a);">
                 <i class="fas fa-shopping-cart"></i>
             </div>
         </div>
-        <div style="font-size: 2.5em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--success-color), #16a34a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $total_purchases; ?></div>
-        <div style="color: var(--light-text); font-size: 0.9em; opacity: 0.8;">Total Purchases</div>
+        <div style="font-size: 2em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--success-color), #16a34a); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $total_purchases; ?></div>
+        <div style="color: var(--light-text); font-size: 0.8em; opacity: 0.8;">Total Purchases</div>
     </div>
     
-    <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-            <div style="width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5em; color: white; background: linear-gradient(135deg, var(--warning-color), #f59e0b);">
+    <div class="card" style="padding: 15px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: white; background: linear-gradient(135deg, var(--warning-color), #f59e0b);">
                 <i class="fas fa-clock"></i>
             </div>
         </div>
-        <div style="font-size: 2.5em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--warning-color), #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $pending_purchases; ?></div>
-        <div style="color: var(--light-text); font-size: 0.9em; opacity: 0.8;">Pending Purchases</div>
+        <div style="font-size: 2em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--warning-color), #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $pending_purchases; ?></div>
+        <div style="color: var(--light-text); font-size: 0.8em; opacity: 0.8;">Pending Purchases</div>
     </div>
     
-    <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-            <div style="width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5em; color: white; background: linear-gradient(135deg, var(--info-color), #3b82f6);">
+    <div class="card" style="padding: 15px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: white; background: linear-gradient(135deg, var(--info-color), #3b82f6);">
                 <i class="fas fa-truck"></i>
             </div>
         </div>
-        <div style="font-size: 2.5em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--info-color), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $total_distributions; ?></div>
-        <div style="color: var(--light-text); font-size: 0.9em; opacity: 0.8;">Stock Distributions</div>
+        <div style="font-size: 2em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--info-color), #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $total_distributions; ?></div>
+        <div style="color: var(--light-text); font-size: 0.8em; opacity: 0.8;">Stock Distributions</div>
     </div>
     
-    <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-            <div style="width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5em; color: white; background: linear-gradient(135deg, var(--danger-color), #dc2626);">
+    <div class="card" style="padding: 15px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: white; background: linear-gradient(135deg, var(--danger-color), #dc2626);">
                 <i class="fas fa-bell"></i>
             </div>
         </div>
-        <div style="font-size: 2.5em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--danger-color), #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $unread_notifications; ?></div>
-        <div style="color: var(--light-text); font-size: 0.9em; opacity: 0.8;">Unread Notifications</div>
+        <div style="font-size: 2em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, var(--danger-color), #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $unread_notifications; ?></div>
+        <div style="color: var(--light-text); font-size: 0.8em; opacity: 0.8;">Unread Notifications</div>
     </div>
     
-    <div class="card">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-            <div style="width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5em; color: white; background: linear-gradient(135deg, #f59e0b, #f59e0b);">
+    <div class="card" style="padding: 15px; text-align: center;">
+        <div style="display: flex; align-items: center; justify-content: center; margin-bottom: 10px;">
+            <div style="width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2em; color: white; background: linear-gradient(135deg, #f59e0b, #f59e0b);">
                 <i class="fas fa-exclamation-triangle"></i>
             </div>
         </div>
-        <div style="font-size: 2.5em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, #f59e0b, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $low_stock_alerts; ?></div>
-        <div style="color: var(--light-text); font-size: 0.9em; opacity: 0.8;">Stock Alerts</div>
+        <div style="font-size: 2em; font-weight: 700; margin-bottom: 5px; background: linear-gradient(135deg, #f59e0b, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"><?php echo $low_stock_alerts; ?></div>
+        <div style="color: var(--light-text); font-size: 0.8em; opacity: 0.8;">Stock Alerts</div>
     </div>
 </div>
 
@@ -201,6 +201,46 @@ include 'includes/header.php';
         <?php endforeach; ?>
     <?php endif; ?>
 </div>
+
+<style>
+    /* Responsive design for statistics */
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(4, 1fr) !important;
+        }
+    }
+    
+    @media (max-width: 900px) {
+        .stats-grid {
+            grid-template-columns: repeat(3, 1fr) !important;
+        }
+    }
+    
+    @media (max-width: 600px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 10px !important;
+        }
+        
+        .stats-grid .card {
+            padding: 10px !important;
+        }
+        
+        .stats-grid .card div[style*="font-size: 2em"] {
+            font-size: 1.5em !important;
+        }
+        
+        .stats-grid .card div[style*="font-size: 0.8em"] {
+            font-size: 0.7em !important;
+        }
+    }
+    
+    @media (max-width: 400px) {
+        .stats-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
 
 <script>
     // Auto-refresh dashboard every 30 seconds

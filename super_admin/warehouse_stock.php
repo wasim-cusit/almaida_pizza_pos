@@ -71,6 +71,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 echo json_encode(['success' => false, 'message' => 'Error updating warehouse stock: ' . $e->getMessage()]);
             }
             exit();
+            
+        case 'get_categories':
+            $query = "SELECT id, name FROM categories ORDER BY name";
+            $stmt = $db->prepare($query);
+            $stmt->execute();
+            $categories = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'categories' => $categories]);
+            exit();
+            
+        case 'get_warehouse_movements':
+            $item_id = isset($_POST['item_id']) ? (int)$_POST['item_id'] : null;
+            
+            $query = "SELECT wm.*, i.name as item_name, u.name as user_name 
+                     FROM warehouse_movements wm
+                     JOIN items i ON wm.item_id = i.id
+                     LEFT JOIN users u ON wm.user_id = u.id";
+            
+            $params = [];
+            if ($item_id) {
+                $query .= " WHERE wm.item_id = ?";
+                $params[] = $item_id;
+            }
+            
+            $query .= " ORDER BY wm.created_at DESC LIMIT 50";
+            $stmt = $db->prepare($query);
+            $stmt->execute($params);
+            $movements = $stmt->fetchAll();
+            echo json_encode(['success' => true, 'movements' => $movements]);
+            exit();
     }
 }
 
@@ -90,7 +119,7 @@ $stmt = $db->prepare($query);
 $stmt->execute();
 $out_of_stock_items = $stmt->fetch()['out_of_stock_items'];
 
-$query = "SELECT SUM(current_stock * unit_cost) as total_value FROM main_warehouse_stock";
+$query = "SELECT SUM(current_stock) as total_value FROM main_warehouse_stock";
 $stmt = $db->prepare($query);
 $stmt->execute();
 $total_value = $stmt->fetch()['total_value'] ?? 0;
@@ -156,7 +185,7 @@ include 'includes/header.php';
         <h2 class="card-title">
             <i class="fas fa-list"></i> Warehouse Stock
         </h2>
-        <div style="display: flex; gap: 10px;">
+        <div style="display: flex; gap: 10px; align-items: center;">
             <select class="form-control" style="width: auto;" id="category-filter">
                 <option value="">All Categories</option>
             </select>
@@ -166,6 +195,9 @@ include 'includes/header.php';
                 <option value="low">Low Stock</option>
                 <option value="out">Out of Stock</option>
             </select>
+            <button class="btn btn-secondary" onclick="clearFilters()" style="padding: 8px 12px; font-size: 12px;">
+                <i class="fas fa-times"></i> Clear Filters
+            </button>
         </div>
     </div>
     <div id="warehouse-stock-container">
@@ -229,6 +261,10 @@ include 'includes/header.php';
     document.addEventListener('DOMContentLoaded', function() {
         loadWarehouseStock();
         loadCategories();
+        
+        // Add event listeners for filters
+        document.getElementById('category-filter').addEventListener('change', filterWarehouseStock);
+        document.getElementById('status-filter').addEventListener('change', filterWarehouseStock);
     });
 
     // Load warehouse stock
@@ -244,12 +280,56 @@ include 'includes/header.php';
         .then(data => {
             if (data.success) {
                 warehouseStock = data.stock;
-                displayWarehouseStock(data.stock);
+                filterWarehouseStock();
             }
         })
         .catch(error => {
             console.error('Error loading warehouse stock:', error);
+            const container = document.getElementById('warehouse-stock-container');
+            container.innerHTML = `
+                <div style="text-align: center; color: #dc3545; padding: 40px;">
+                    <i class="fas fa-exclamation-triangle" style="font-size: 3em; margin-bottom: 20px; opacity: 0.7;"></i>
+                    <h3 style="margin-bottom: 10px;">Error Loading Warehouse Stock</h3>
+                    <p style="margin-bottom: 20px; color: #666;">Failed to load warehouse stock. Please try again.</p>
+                    <button class="btn btn-primary" onclick="loadWarehouseStock()">
+                        <i class="fas fa-redo"></i> Try Again
+                    </button>
+                </div>
+            `;
+            showNotification('Failed to load warehouse stock', 'error');
         });
+    }
+
+    // Filter warehouse stock
+    function filterWarehouseStock() {
+        const categoryFilter = document.getElementById('category-filter').value;
+        const statusFilter = document.getElementById('status-filter').value;
+        
+        let filteredStock = warehouseStock.filter(item => {
+            const matchesCategory = categoryFilter === '' || item.category_id == categoryFilter;
+            const matchesStatus = statusFilter === '' || getStockLevelFilter(item.current_stock, item.minimum_stock) === statusFilter;
+            return matchesCategory && matchesStatus;
+        });
+        
+        displayWarehouseStock(filteredStock);
+    }
+
+    // Get stock level for filtering
+    function getStockLevelFilter(current, minimum) {
+        if (current <= 0) {
+            return 'out';
+        } else if (current <= minimum) {
+            return 'low';
+        } else {
+            return 'good';
+        }
+    }
+
+    // Clear all filters
+    function clearFilters() {
+        document.getElementById('category-filter').value = '';
+        document.getElementById('status-filter').value = '';
+        filterWarehouseStock();
     }
 
     // Display warehouse stock
@@ -317,14 +397,28 @@ include 'includes/header.php';
 
     // Load categories
     function loadCategories() {
-        // Simulate loading categories
-        const select = document.getElementById('category-filter');
-        select.innerHTML = `
-            <option value="">All Categories</option>
-            <option value="1">Food Items</option>
-            <option value="2">Beverages</option>
-            <option value="3">Supplies</option>
-        `;
+        fetch('warehouse_stock.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=get_categories'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const select = document.getElementById('category-filter');
+                let html = '<option value="">All Categories</option>';
+                data.categories.forEach(category => {
+                    html += `<option value="${category.id}">${category.name}</option>`;
+                });
+                select.innerHTML = html;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading categories:', error);
+            showNotification('Failed to load categories', 'error');
+        });
     }
 
     // Show adjust stock modal
@@ -363,7 +457,7 @@ include 'includes/header.php';
         }
         
         if (newStock < 0) {
-            alert('Stock cannot be negative');
+            showNotification('Stock cannot be negative', 'error');
             return;
         }
         
@@ -377,16 +471,16 @@ include 'includes/header.php';
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Warehouse stock updated successfully');
+                showNotification('Warehouse stock updated successfully', 'success');
                 closeModal('adjust-stock-modal');
                 loadWarehouseStock();
             } else {
-                alert('Error: ' + data.message);
+                showNotification(data.message, 'error');
             }
         })
         .catch(error => {
             console.error('Error updating warehouse stock:', error);
-            alert('Error updating warehouse stock');
+            showNotification('Error updating warehouse stock', 'error');
         });
     });
 
@@ -405,13 +499,338 @@ include 'includes/header.php';
         });
     }
 
-    // Placeholder functions
-    function exportStock() {
-        alert('Export functionality - Coming soon!');
+    // Professional notification system
+    function showNotification(message, type = 'info') {
+        // Remove existing notifications
+        const existingNotifications = document.querySelectorAll('.notification');
+        existingNotifications.forEach(notification => notification.remove());
+        
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            max-width: 400px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        `;
+        
+        // Set colors based on type
+        const colors = {
+            success: '#10b981',
+            error: '#ef4444',
+            warning: '#f59e0b',
+            info: '#3b82f6'
+        };
+        
+        notification.style.backgroundColor = colors[type] || colors.info;
+        
+        // Add icon
+        const icons = {
+            success: 'fas fa-check-circle',
+            error: 'fas fa-exclamation-circle',
+            warning: 'fas fa-exclamation-triangle',
+            info: 'fas fa-info-circle'
+        };
+        
+        notification.innerHTML = `
+            <i class="${icons[type] || icons.info}" style="font-size: 18px;"></i>
+            <span>${message}</span>
+            <button onclick="this.parentElement.remove()" style="
+                background: none;
+                border: none;
+                color: white;
+                font-size: 18px;
+                cursor: pointer;
+                margin-left: auto;
+                padding: 0;
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            ">&times;</button>
+        `;
+        
+        // Add to page
+        document.body.appendChild(notification);
+        
+        // Animate in
+        setTimeout(() => {
+            notification.style.transform = 'translateX(0)';
+        }, 100);
+        
+        // Auto remove after 5 seconds
+        setTimeout(() => {
+            if (notification.parentElement) {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    if (notification.parentElement) {
+                        notification.remove();
+                    }
+                }, 300);
+            }
+        }, 5000);
     }
 
+    // Export warehouse stock to CSV
+    function exportStock() {
+        if (warehouseStock.length === 0) {
+            showNotification('No stock data to export', 'warning');
+            return;
+        }
+        
+        const headers = ['Item Name', 'Category', 'Current Stock', 'Minimum Stock', 'Unit Cost', 'Total Value', 'Status'];
+        let csvContent = headers.join(',') + '\n';
+        
+        warehouseStock.forEach(item => {
+            const stockLevel = getStockLevel(item.current_stock, item.minimum_stock);
+            const totalValue = item.current_stock * (item.unit_cost || 0);
+            
+            const row = [
+                `"${item.item_name}"`,
+                `"${item.category_name}"`,
+                item.current_stock,
+                item.minimum_stock || 0,
+                (item.unit_cost || 0).toFixed(2),
+                totalValue.toFixed(2),
+                `"${stockLevel.text}"`
+            ];
+            csvContent += row.join(',') + '\n';
+        });
+        
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `warehouse_stock_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showNotification('Warehouse stock exported successfully', 'success');
+    }
+
+    // Show warehouse stock reports
     function showReports() {
-        alert('Reports functionality - Coming soon!');
+        // Create a simple report modal
+        const reportModal = document.createElement('div');
+        reportModal.id = 'report-modal';
+        reportModal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;';
+        reportModal.innerHTML = `
+            <div style="background: white; margin: 5% auto; padding: 30px; border-radius: 15px; width: 90%; max-width: 800px; position: relative; max-height: 80vh; overflow-y: auto;">
+                <span onclick="closeModal('report-modal')" style="position: absolute; right: 20px; top: 20px; font-size: 28px; cursor: pointer; color: #aaa;">&times;</span>
+                <h3>Warehouse Stock Reports</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 20px 0;">
+                    <button class="btn btn-primary" onclick="generateStockReport('summary')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-chart-pie" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Summary Report</div>
+                    </button>
+                    <button class="btn btn-warning" onclick="generateStockReport('low')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-exclamation-triangle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Low Stock Report</div>
+                    </button>
+                    <button class="btn btn-danger" onclick="generateStockReport('out')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-times-circle" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Out of Stock</div>
+                    </button>
+                    <button class="btn btn-info" onclick="generateStockReport('movements')" style="padding: 20px; text-align: center;">
+                        <i class="fas fa-history" style="font-size: 2em; margin-bottom: 10px; display: block;"></i>
+                        <div>Recent Movements</div>
+                    </button>
+                </div>
+                <div id="stock-report-content" style="margin-top: 20px; padding: 20px; background: #f8fafc; border-radius: 8px;">
+                    <p style="text-align: center; color: #666;">Select a report type above</p>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(reportModal);
+        document.getElementById('report-modal').style.display = 'block';
+    }
+
+    // Generate stock report
+    function generateStockReport(type) {
+        const content = document.getElementById('stock-report-content');
+        content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin"></i> Generating report...</div>';
+        
+        setTimeout(() => {
+            let reportHTML = '';
+            
+            switch(type) {
+                case 'summary':
+                    const totalItems = warehouseStock.length;
+                    const lowStockCount = warehouseStock.filter(item => item.current_stock <= item.minimum_stock && item.current_stock > 0).length;
+                    const outOfStockCount = warehouseStock.filter(item => item.current_stock <= 0).length;
+                    const totalValue = warehouseStock.reduce((sum, item) => sum + (item.current_stock * (item.unit_cost || 0)), 0);
+                    
+                    reportHTML = `
+                        <h4>Warehouse Stock Summary</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0;">
+                            <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold; color: #1976d2;">${totalItems}</div>
+                                <div>Total Items</div>
+                            </div>
+                            <div style="background: #fff3e0; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold; color: #f57c00;">${lowStockCount}</div>
+                                <div>Low Stock Items</div>
+                            </div>
+                            <div style="background: #ffebee; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold; color: #d32f2f;">${outOfStockCount}</div>
+                                <div>Out of Stock</div>
+                            </div>
+                            <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; text-align: center;">
+                                <div style="font-size: 2em; font-weight: bold; color: #388e3c;">$${totalValue.toFixed(2)}</div>
+                                <div>Total Value</div>
+                            </div>
+                        </div>
+                    `;
+                    break;
+                case 'low':
+                    const lowStockItems = warehouseStock.filter(item => item.current_stock <= item.minimum_stock && item.current_stock > 0);
+                    reportHTML = `
+                        <h4>Low Stock Items Report</h4>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f5f5f5;">
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Category</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Current Stock</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Minimum Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${lowStockItems.map(item => `
+                                        <tr>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.item_name}</td>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.category_name}</td>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee; color: #f57c00; font-weight: bold;">${item.current_stock}</td>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.minimum_stock || 0}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    break;
+                case 'out':
+                    const outOfStockItems = warehouseStock.filter(item => item.current_stock <= 0);
+                    reportHTML = `
+                        <h4>Out of Stock Items Report</h4>
+                        <div style="overflow-x: auto;">
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: #f5f5f5;">
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Item Name</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Category</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Current Stock</th>
+                                        <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Minimum Stock</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${outOfStockItems.map(item => `
+                                        <tr>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.item_name}</td>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.category_name}</td>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee; color: #d32f2f; font-weight: bold;">${item.current_stock}</td>
+                                            <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.minimum_stock || 0}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                    break;
+                case 'movements':
+                    reportHTML = `
+                        <h4>Recent Warehouse Movements</h4>
+                        <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                            <p><strong>Note:</strong> Recent warehouse movements would be loaded here.</p>
+                            <p>This report would show the latest stock adjustments, purchases, and distributions.</p>
+                            <button class="btn btn-primary" onclick="loadRecentMovements()" style="margin-top: 10px;">
+                                <i class="fas fa-refresh"></i> Load Recent Movements
+                            </button>
+                        </div>
+                        <div id="movements-content"></div>
+                    `;
+                    break;
+            }
+            
+            content.innerHTML = reportHTML;
+        }, 1000);
+    }
+
+    // Load recent movements
+    function loadRecentMovements() {
+        fetch('warehouse_stock.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=get_warehouse_movements'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const content = document.getElementById('movements-content');
+                if (data.movements.length === 0) {
+                    content.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No recent movements found</p>';
+                } else {
+                    let html = `
+                        <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+                            <thead>
+                                <tr style="background: #f5f5f5;">
+                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Item</th>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Type</th>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Quantity</th>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">User</th>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                    `;
+                    
+                    data.movements.forEach(movement => {
+                        const typeColor = movement.movement_type === 'in' ? '#10b981' : '#ef4444';
+                        const typeText = movement.movement_type === 'in' ? 'In' : 'Out';
+                        
+                        html += `
+                            <tr>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">${movement.item_name}</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">
+                                    <span style="color: ${typeColor}; font-weight: bold;">${typeText}</span>
+                                </td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">${movement.quantity}</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">${movement.user_name || 'System'}</td>
+                                <td style="padding: 10px; border-bottom: 1px solid #eee;">${new Date(movement.created_at).toLocaleDateString()}</td>
+                            </tr>
+                        `;
+                    });
+                    
+                    html += '</tbody></table>';
+                    content.innerHTML = html;
+                }
+            } else {
+                showNotification('Failed to load movements', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error loading movements:', error);
+            showNotification('Error loading movements', 'error');
+        });
     }
 </script>
 

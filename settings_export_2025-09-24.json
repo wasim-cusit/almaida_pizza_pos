@@ -1,0 +1,33 @@
+{
+    "export_date": "2025-09-25 01:38:14",
+    "exported_by": 6,
+    "settings": {
+        "admin_email": "admin@almaida.com",
+        "audit_logging": "1",
+        "auto_reorder_point": "10",
+        "auto_stock_alerts": "1",
+        "company_address": "123 Business St, City, State",
+        "company_email": "admin@almaida.com",
+        "company_name": "Almaida POS",
+        "company_phone": "+1-555-0123",
+        "currency": "USD",
+        "email_order_notifications": "1",
+        "email_reports": "1",
+        "email_stock_alerts": "1",
+        "email_system_alerts": "1",
+        "low_stock_notifications": "1",
+        "low_stock_threshold": "20",
+        "max_login_attempts": "5",
+        "notification_email": "notifications@almaida.com",
+        "password_expiry": "90",
+        "password_min_length": "8",
+        "require_strong_passwords": "1",
+        "session_timeout": "30",
+        "sms_critical_alerts": "0",
+        "sms_system_down": "0",
+        "stock_alert_email": "alerts@almaida.com",
+        "stock_alert_frequency": "daily",
+        "timezone": "UTC",
+        "two_factor_auth": "0"
+    }
+}

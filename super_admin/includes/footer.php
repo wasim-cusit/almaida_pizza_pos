@@ -57,6 +57,12 @@
         
         navLinks.forEach(link => {
             link.addEventListener('click', function(e) {
+                // Check if it's a normal click (not Ctrl+click or middle click)
+                if (e.ctrlKey || e.metaKey || e.button === 1) {
+                    // Allow normal navigation for Ctrl+click, Cmd+click, or middle click
+                    return;
+                }
+                
                 e.preventDefault();
                 
                 const page = this.getAttribute('data-page');
@@ -101,6 +107,9 @@
                                 
                                 // Re-initialize any page-specific scripts
                                 initializePageScripts();
+                                
+                                // Update URL without page reload
+                                history.pushState(null, null, href);
                             }, 300);
                         } else {
                             // Fallback to normal navigation
@@ -114,6 +123,12 @@
                         window.location.href = href;
                     });
             });
+        });
+        
+        // Handle browser back/forward buttons
+        window.addEventListener('popstate', function(e) {
+            // Reload the current page when back/forward is used
+            window.location.reload();
         });
 
         // Initialize page-specific scripts
@@ -148,12 +163,47 @@
         document.addEventListener('DOMContentLoaded', () => {
             initializePageScripts();
             
-            // Set active nav link based on current page
+            // Set active nav link based on current page (only if not already set by PHP)
             const currentPage = window.location.pathname.split('/').pop().replace('.php', '');
-            const activeLink = document.querySelector(`[data-page="${currentPage}"]`);
-            if (activeLink) {
+            
+            // Check if any nav link already has active class (set by PHP)
+            const hasActiveLink = document.querySelector('.nav-link.active');
+            
+            if (!hasActiveLink) {
+                // Remove active class from all nav links first
                 navLinks.forEach(nav => nav.classList.remove('active'));
-                activeLink.classList.add('active');
+                
+                // Try to find matching nav link
+                let activeLink = null;
+                
+                // Direct match
+                activeLink = document.querySelector(`[data-page="${currentPage}"]`);
+                
+                // If no direct match, try alternative mappings
+                if (!activeLink) {
+                    const pageMappings = {
+                        'index': 'dashboard',
+                        'stock_management': 'stock-management',
+                        'stock_purchases': 'stock-purchases',
+                        'stock_distributions': 'stock-distributions',
+                        'manage_branches': 'manage-branches',
+                        'notifications': 'notifications',
+                        'stock_reports': 'stock-reports',
+                        'suppliers': 'suppliers',
+                        'warehouse_stock': 'warehouse-stock',
+                        'settings': 'settings'
+                    };
+                    
+                    const mappedPage = pageMappings[currentPage];
+                    if (mappedPage) {
+                        activeLink = document.querySelector(`[data-page="${mappedPage}"]`);
+                    }
+                }
+                
+                // Set active class
+                if (activeLink) {
+                    activeLink.classList.add('active');
+                }
             }
         });
 

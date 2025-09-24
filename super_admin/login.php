@@ -19,8 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             // Check if user exists and is super admin
-            $query = "SELECT id, username, password, name, role FROM users 
-                     WHERE username = ? AND role = 'super_admin' AND is_active = 1";
+            $query = "SELECT u.id, u.username, u.password, u.name, u.role, u.branch_id, u.email, b.name as branch_name 
+                     FROM users u 
+                     LEFT JOIN branches b ON u.branch_id = b.id 
+                     WHERE u.username = ? AND u.role = 'super_admin' AND u.is_active = 1";
             $stmt = $db->prepare($query);
             $stmt->execute([$username]);
             $user = $stmt->fetch();
@@ -31,6 +33,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['user_name'] = $user['name'];
                 $_SESSION['user_role'] = $user['role'];
+                $_SESSION['user_email'] = $user['email'];
+                $_SESSION['branch_id'] = $user['branch_id'];
+                $_SESSION['branch_name'] = $user['branch_name'];
                 $_SESSION['login_time'] = time();
                 
                 // Log login activity

@@ -1,284 +1,269 @@
-# 🍕 Fast Food POS System - Almaida
+# 🍕 Almaida POS System - Complete Restaurant Management Solution
 
-A complete, professional Point of Sale (POS) system designed for restaurants and fast-food establishments. Built with modern web technologies and inspired by real-world POS interfaces.
+[![PHP Version](https://img.shields.io/badge/PHP-7.4+-blue.svg)](https://php.net)
+[![MySQL](https://img.shields.io/badge/MySQL-5.7+-orange.svg)](https://mysql.com)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## ✨ Features
+A comprehensive Point of Sale (POS) system designed for multi-branch restaurant management with advanced inventory, staff scheduling, and revenue reconciliation features.
 
-### 🛒 Core POS Features
-- **Real-time Cart Management** - Add, remove, and modify items with live updates
-- **Category-based Menu** - Organized food categories with intuitive navigation
-- **Order Processing** - Complete order workflow with payment options
-- **Customer Management** - Store customer information and order history
-- **Receipt Generation** - Print-ready receipts with order details
-- **Order Status Tracking** - Track orders from pending to completed
-- **Size Variants** - Support for different item sizes (Small, Medium, Large, etc.)
+## 📋 Table of Contents
 
-### 🎨 User Interface
-- **Modern Design** - Clean, professional interface optimized for touch screens
-- **Responsive Layout** - Works on desktop, tablet, and mobile devices
-- **Keyboard Shortcuts** - Function keys for quick category access
-- **Toast Notifications** - Real-time feedback for user actions
-- **Modal Dialogs** - Clean popup interfaces for special functions
+- [Features](#-features)
+- [System Architecture](#-system-architecture)
+- [Installation](#-installation)
+- [User Roles & Permissions](#-user-roles--permissions)
+- [Software Flow](#-software-flow)
+- [QA Testing](#-qa-testing)
+- [Troubleshooting](#-troubleshooting)
+- [License](#-license)
 
-### 🔧 Administrative Features
-- **Admin Dashboard** - Overview of sales, orders, and system statistics
-- **User Management** - Role-based access control (Admin/Cashier)
-- **Menu Management** - Add, edit, and organize menu items and categories
-- **Sales Reports** - Daily, weekly, and monthly sales analytics
-- **Order History** - Complete order tracking and management
-- **Kitchen Display** - Real-time order display for kitchen staff
+## 🚀 Features
 
-### 💾 Technical Features
-- **Database Integration** - MySQL database with normalized structure
-- **Session Management** - Secure user authentication and session handling
-- **AJAX Support** - Real-time updates without page refreshes
-- **Local Storage** - Cart persistence across browser sessions
-- **Print Support** - Receipt printing functionality
-- **QR Code Generation** - Order tracking with QR codes
+### Core POS Features
+- **Multi-branch Management** - Support for unlimited restaurant branches
+- **Order Management** - Complete order lifecycle from creation to completion
+- **Real-time Kitchen Display** - Live order tracking for kitchen staff
+- **Payment Processing** - Multiple payment methods with reconciliation
+- **Receipt & Invoice Printing** - Professional receipt generation
 
-## 🚀 Quick Start
+### Inventory Management
+- **Warehouse Stock Management** - Central inventory control
+- **Branch Stock Tracking** - Per-location inventory management
+- **Stock Purchases** - Purchase order management from suppliers
+- **Stock Distributions** - Warehouse to branch transfers
+- **Low Stock Alerts** - Automatic inventory notifications
+- **Stock Movements** - Complete audit trail
+
+### Staff & Schedule Management
+- **Shift Scheduling** - Flexible staff scheduling system
+- **Attendance Tracking** - Real-time attendance monitoring
+- **Labor Cost Management** - Automatic labor cost calculations
+- **Overtime Tracking** - Overtime hours and cost management
+- **Staff Templates** - Recurring schedule templates
+
+### Revenue & Financial Management
+- **Cash Drawer Management** - Opening/closing cash drawers
+- **Revenue Reconciliation** - Daily revenue tracking and variance analysis
+- **Payment Method Tracking** - Cash, card, digital wallet support
+- **Financial Reporting** - Comprehensive financial analytics
+- **Multi-branch Revenue Monitoring** - Centralized financial oversight
+
+### Analytics & Reporting
+- **Sales Analytics** - Detailed sales performance metrics
+- **Inventory Reports** - Stock movement and consumption analysis
+- **Labor Cost Reports** - Staff cost and efficiency metrics
+- **Revenue Reports** - Financial performance tracking
+- **Branch Comparison** - Multi-location performance analysis
+
+## 🏗️ System Architecture
+
+### Technology Stack
+- **Backend**: PHP 7.4+
+- **Database**: MySQL 5.7+
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Libraries**: jQuery, Font Awesome, Bootstrap-inspired styling
+- **Server**: Apache/Nginx with PHP support
+
+### File Structure
+```
+almaida/
+├── admin/                          # Branch Admin Panel
+│   ├── cashier_dashboard.php      # Cashier interface
+│   ├── kitchen_display.php        # Kitchen order display
+│   ├── manage_*.php               # Management interfaces
+│   ├── revenue_reconciliation.php # Revenue management
+│   ├── shift_schedule.php         # Staff scheduling
+│   └── view_orders.php            # Order management
+├── super_admin/                    # Super Admin Panel
+│   ├── index.php                  # Dashboard
+│   ├── manage_branches.php        # Branch management
+│   ├── revenue_reconciliation.php # Multi-branch revenue
+│   ├── shift_schedule.php         # Multi-branch scheduling
+│   └── stock_*.php                # Stock management
+├── api/                           # API Endpoints
+│   ├── get_items.php              # Item retrieval
+│   ├── process_order.php          # Order processing
+│   └── search_*.php               # Search functionality
+├── assets/                        # Static Assets
+│   ├── css/                       # Stylesheets
+│   └── js/                        # JavaScript files
+├── config/                        # Configuration
+│   └── database.php               # Database configuration
+├── database_*.sql                 # Database schemas
+└── setup files                    # Installation scripts
+```
+
+## 📦 Installation
 
 ### Prerequisites
 - PHP 7.4 or higher
 - MySQL 5.7 or higher
-- Web server (Apache/Nginx)
-- Modern web browser
+- Apache/Nginx web server
+- Web browser (Chrome, Firefox, Safari, Edge)
 
-### Installation
+### Quick Installation
 
-1. **Clone or Download**
+1. **Download & Extract**
    ```bash
-   git clone <repository-url>
-   cd almaida
+   # Download the project files to your web directory
+   cd /path/to/your/web/directory
    ```
 
 2. **Database Setup**
-   - Create a MySQL database named `u515862593_almaida`
-   - Import the database schema:
    ```bash
-   mysql -u root -p u515862593_almaida < u515862593_almaida.sql
+   # Import the main database schema
+   mysql -u username -p database_name < pizza_pos.sql
    ```
 
-3. **Configuration**
-   - Edit `config/database.php` with your database credentials:
+3. **Run Complete Setup**
+   - Navigate to: `http://your-domain/almaida/complete_setup.php`
+   - Click "Start Complete Setup"
+   - Wait for all 16 setup steps to complete
+
+4. **Verify Installation**
+   - Navigate to: `http://your-domain/almaida/verify_features.php`
+   - Ensure all tests pass
+
+5. **Initial Configuration**
+   - Configure database connection in `config/database.php`
+   - Set up your first super admin account
+   - Create your first branch
+
+### Manual Installation
+
+1. **Database Configuration**
    ```php
-   private $host = 'localhost';
-   private $db_name = 'u515862593_almaida';
-   private $username = 'your_username';
-   private $password = 'your_password';
+   // config/database.php
+   $host = 'localhost';
+   $dbname = 'your_database_name';
+   $username = 'your_username';
+   $password = 'your_password';
    ```
 
-4. **Web Server Setup**
-   - Point your web server to the project directory
-   - Ensure PHP has write permissions for session handling
+2. **Import Database Schemas**
+   ```sql
+   -- Main POS system
+   SOURCE pizza_pos.sql;
+   
+   -- Stock management
+   SOURCE database_stock_management.sql;
+   
+   -- Branch integration
+   SOURCE database_branch_integration.sql;
+   
+   -- Revenue & shift management
+   SOURCE database_revenue_shift_management_fixed.sql;
+   ```
 
-5. **Access the System**
-   - Navigate to `http://localhost/almaida/`
-   - Login with default credentials:
-     - **Username:** `admin`
-     - **Password:** `password`
+3. **File Permissions**
+   ```bash
+   chmod 755 /path/to/almaida/
+   chmod 644 /path/to/almaida/config/database.php
+   ```
 
-## 📁 Project Structure
+## 👥 User Roles & Permissions
 
+### Super Admin
+- **Full System Access**: Complete control over all branches
+- **Branch Management**: Create, edit, delete branches
+- **Stock Management**: Warehouse inventory, purchases, distributions
+- **Revenue Monitoring**: Multi-branch revenue reconciliation
+- **Staff Oversight**: View all schedules and labor costs
+- **System Configuration**: Global settings and configurations
+
+### Branch Admin
+- **Branch Operations**: Manage their specific branch only
+- **Order Management**: Process orders and payments
+- **Staff Scheduling**: Create and manage shift schedules
+- **Revenue Reconciliation**: Daily cash drawer management
+- **Inventory Tracking**: View and manage branch stock
+- **Reports Access**: Branch-specific analytics
+
+### Cashier
+- **Order Processing**: Create and process customer orders
+- **Payment Handling**: Process payments and print receipts
+- **Basic Reports**: View sales summaries
+- **Cash Drawer**: Open/close cash drawers
+
+### Kitchen Staff
+- **Order Display**: View kitchen display for order preparation
+- **Order Status**: Update order completion status
+- **No Financial Access**: Cannot access payment or cash functions
+
+## 🔄 Software Flow
+
+### Order Processing Flow
 ```
-almaida/
-├── config/
-│   └── database.php              # Database configuration
-├── assets/
-│   ├── css/
-│   │   ├── style.css             # Main stylesheet
-│   │   └── print-optimized.css   # Print styles
-│   └── js/
-│       ├── app.js                # Main application logic
-│       └── cart.js               # Cart management
-├── api/
-│   ├── get_items.php             # Fetch items by category
-│   ├── process_order.php         # Process orders
-│   ├── complete_order.php        # Complete order workflow
-│   ├── search_items.php          # Search functionality
-│   └── generate_order_number.php # Order number generation
-├── admin/
-│   ├── index.php                 # Admin dashboard
-│   ├── manage_items.php          # Item management
-│   ├── manage_categories.php     # Category management
-│   ├── manage_users.php          # User management
-│   ├── reports.php               # Sales reports
-│   ├── view_orders.php           # Order management
-│   ├── kitchen_display.php       # Kitchen display
-│   └── settings.php              # System settings
-├── u515862593_almaida.sql        # Database schema
-├── index.php                     # Main POS interface
-├── login.php                     # Login page
-├── logout.php                    # Logout functionality
-├── print_receipt.php             # Receipt printing
-├── print_invoice.php             # Invoice printing
-└── README.md                     # This file
+1. Customer Order Entry
+   ↓
+2. Order Validation & Item Availability Check
+   ↓
+3. Order Sent to Kitchen Display
+   ↓
+4. Kitchen Preparation & Status Updates
+   ↓
+5. Order Completion & Payment Processing
+   ↓
+6. Receipt Generation & Cash Drawer Update
+   ↓
+7. Inventory Deduction & Sales Recording
 ```
 
-## 🎯 Usage Guide
+### Stock Management Flow
+```
+1. Warehouse Stock Purchase from Supplier
+   ↓
+2. Stock Entry into Warehouse
+   ↓
+3. Branch Requests Stock Distribution
+   ↓
+4. Super Admin Approves Distribution
+   ↓
+5. Stock Dispatched to Branch
+   ↓
+6. Branch Admin Receives & Confirms Stock
+   ↓
+7. Branch Stock Updated & Available for Sales
+```
 
-### For Cashiers
-1. **Login** with your credentials
-2. **Select Categories** using the category grid or function keys (F1-F12)
-3. **Add Items** by clicking on menu items
-4. **Select Sizes** for items with size variants
-5. **Manage Cart** using the left sidebar controls
-6. **Enter Customer Info** (optional)
-7. **Process Payment** using the Order button
-8. **Print Receipt** when prompted
+### Revenue Reconciliation Flow
+```
+1. Branch Admin Opens Cash Drawer
+   ↓
+2. Orders Processed Throughout Day
+   ↓
+3. Payment Methods Tracked per Order
+   ↓
+4. Branch Admin Closes Cash Drawer
+   ↓
+5. Actual Cash Counted & Entered
+   ↓
+6. System Calculates Expected vs Actual
+   ↓
+7. Variance Analysis & Reconciliation
+   ↓
+8. Super Admin Monitoring & Approval
+```
 
-### For Administrators
-1. **Access Admin Panel** via the Back Office button
-2. **View Statistics** on the dashboard
-3. **Manage Menu Items** and categories
-4. **Generate Reports** for sales analysis
-5. **Manage Users** and system settings
-6. **Monitor Kitchen** with kitchen display
-
-### Keyboard Shortcuts
-- **F1-F12**: Quick category selection
-- **Arrow Keys**: Navigate cart items
-- **+/-**: Increase/decrease quantity
-- **Delete**: Remove selected item
-- **Ctrl+Enter**: Process order
-- **Escape**: Close modals
-
-## 🗄️ Database Schema
-
-### Core Tables
-- **users** - User accounts and roles
-- **categories** - Menu categories
-- **items** - Menu items with prices and stock
-- **item_size_variants** - Size options for items
-- **customers** - Customer information
-- **orders** - Order headers
-- **order_items** - Individual order items
-- **settings** - System configuration
-- **special_offers** - Promotional offers
-
-### Sample Data
-The system comes pre-loaded with:
-- 17 food categories (Pizza, Burgers, Drinks, etc.)
-- 80+ menu items with realistic prices
-- Size variants for pizza items
-- Admin user account
-- Default system settings
-
-## 🔧 Customization
-
-### Adding New Categories
-1. Access the admin panel
-2. Navigate to "Manage Categories"
-3. Add new category with appropriate icon
-
-### Modifying Menu Items
-1. Go to "Manage Items" in admin panel
-2. Edit existing items or add new ones
-3. Set prices, descriptions, and availability
-4. Configure size variants if needed
-
-### Styling Customization
-- Edit `assets/css/style.css` for visual changes
-- Modify color schemes in CSS variables
-- Adjust layout for different screen sizes
-
-## 🛡️ Security Features
-
-- **Password Hashing** - Secure password storage using bcrypt
-- **SQL Injection Prevention** - Prepared statements throughout
-- **Session Management** - Secure session handling
-- **Input Sanitization** - All user inputs are sanitized
-- **Role-based Access** - Admin/Cashier permissions
-- **CSRF Protection** - Form token validation
-
-## 📊 Reporting Features
-
-- **Daily Sales Reports** - Revenue and order counts
-- **Order Analytics** - Popular items and trends
-- **Customer Reports** - Customer order history
-- **Category Performance** - Sales by category
-- **Export Functionality** - CSV export for reports
-- **Date Range Filtering** - Custom date periods
-
-## 🔄 Current Limitations
-
-### Stock Management
-- **Basic Structure Only** - Database has stock_quantity field but no automatic deduction
-- **No Low Stock Alerts** - No warnings when inventory is low
-- **No Stock Reports** - No inventory tracking reports
-- **No Stock Adjustments** - No interface to add/remove stock
-
-### Multi-Branch Support
-- **Single Location Only** - All data is stored in one database
-- **No Branch Management** - No support for multiple locations
-- **No Cross-Branch Reporting** - No multi-location analytics
-
-## 🚀 Future Enhancements
-
-- **Advanced Inventory Management** - Automatic stock deduction and alerts
-- **Multi-location Support** - Multiple restaurant locations
-- **Online Ordering** - Customer-facing ordering system
-- **Mobile App** - Native mobile applications
-- **Payment Gateway Integration** - Credit card processing
-- **Loyalty Program** - Customer rewards system
-- **Advanced Analytics** - Machine learning insights
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Database Connection Error**
-- Verify database credentials in `config/database.php`
-- Ensure MySQL service is running
-- Check database name exists
-
-**Login Issues**
-- Default credentials: admin/password
-- Clear browser cache and cookies
-- Check PHP session configuration
-
-**Cart Not Working**
-- Ensure JavaScript is enabled
-- Check browser console for errors
-- Verify file permissions
-
-**Print Issues**
-- Allow popups for receipt printing
-- Check printer settings
-- Use modern browsers for best compatibility
-
-## 📞 Support
-
-For technical support or feature requests:
-- Check the troubleshooting section above
-- Review browser console for JavaScript errors
-- Verify PHP error logs for server issues
-
-## 📄 License
-
-This project is open source and available under the MIT License.
-
-## 🙏 Acknowledgments
-
-- Inspired by real-world POS systems
-- Built with modern web standards
-- Designed for restaurant efficiency
-- Optimized for touch-screen interfaces
+### Staff Scheduling Flow
+```
+1. Branch Admin Creates Shift Schedules
+   ↓
+2. Staff Assigned to Specific Shifts
+   ↓
+3. Staff Members Mark Attendance (Start/End)
+   ↓
+4. System Tracks Actual Hours Worked
+   ↓
+5. Automatic Labor Cost Calculation
+   ↓
+6. Overtime Detection & Calculation
+   ↓
+7. Labor Cost Approval & Reporting
+```
 
 ---
 
-**🍕 Fast Food POS System - Almaida** - Making restaurant management easier, one order at a time!
-
-## 📈 System Rating
-
-| Feature | Rating | Notes |
-|---------|--------|-------|
-| **Order Management** | 9/10 | Excellent order processing |
-| **User Interface** | 9/10 | Modern, responsive design |
-| **User Management** | 8/10 | Good role-based access |
-| **Reporting** | 8/10 | Comprehensive sales reports |
-| **Stock Management** | 2/10 | Basic structure only |
-| **Multi-Branch** | 0/10 | Not supported |
-| **Overall** | 6/10 | Good POS, needs inventory features |
-
-**Best suited for**: Single-location restaurants that don't need advanced inventory management.
+**Version**: 2.0.0  
+**Last Updated**: January 2025  
+**Maintainer**: MUHAMMAD WASIM - Development Team

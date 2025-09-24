@@ -172,6 +172,16 @@ include 'includes/header.php';
             <i class="fas fa-warehouse" style="font-size: 2em; margin-bottom: 10px; background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
             <h3 style="font-size: 1em; font-weight: 600;">Warehouse Stock</h3>
         </a>
+        
+        <a href="revenue_reconciliation.php" class="action-card" style="background: var(--light-bg); border: 1px solid var(--light-border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; text-decoration: none; color: var(--light-text);">
+            <i class="fas fa-cash-register" style="font-size: 2em; margin-bottom: 10px; background: linear-gradient(135deg, #20bf55, #01baef); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+            <h3 style="font-size: 1em; font-weight: 600;">Revenue Reconciliation</h3>
+        </a>
+        
+        <a href="shift_schedule.php" class="action-card" style="background: var(--light-bg); border: 1px solid var(--light-border); border-radius: 12px; padding: 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; text-decoration: none; color: var(--light-text);">
+            <i class="fas fa-calendar-alt" style="font-size: 2em; margin-bottom: 10px; background: linear-gradient(135deg, #ffc107, #fd7e14); -webkit-background-clip: text; -webkit-text-fill-color: transparent;"></i>
+            <h3 style="font-size: 1em; font-weight: 600;">Shift Schedule</h3>
+        </a>
     </div>
 </div>
 

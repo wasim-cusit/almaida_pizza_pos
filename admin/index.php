@@ -351,6 +351,12 @@ $recentOrders = $stmt->fetchAll();
                 <a href="received_stock.php" class="btn-admin btn-success">
                     <i class="fas fa-truck-loading"></i> Received Stock
                 </a>
+                <a href="revenue_reconciliation.php" class="btn-admin btn-primary">
+                    <i class="fas fa-cash-register"></i> Revenue Reconciliation
+                </a>
+                <a href="shift_schedule.php" class="btn-admin btn-warning">
+                    <i class="fas fa-calendar-alt"></i> Shift Schedule
+                </a>
             </div>
         </div>
         

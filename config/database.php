@@ -84,15 +84,19 @@ function formatCurrency($amount) {
     return number_format($amount, 2);
 }
 
-function getSetting($key) {
+function getSetting($key, $default = '') {
     global $db;
     
-    $query = "SELECT setting_value FROM settings WHERE setting_key = ?";
-    $stmt = $db->prepare($query);
-    $stmt->execute([$key]);
-    $result = $stmt->fetch();
-    
-    return $result ? $result['setting_value'] : null;
+    try {
+        $query = "SELECT setting_value FROM system_settings WHERE setting_key = ?";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$key]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? $result['setting_value'] : $default;
+    } catch (Exception $e) {
+        return $default;
+    }
 }
 
 function isLoggedIn() {

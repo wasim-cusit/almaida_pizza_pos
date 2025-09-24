@@ -214,7 +214,44 @@ $stmt->execute();
                 $stmt = $db->prepare($query);
                 $stmt->execute($params);
                 
-                echo json_encode(['success' => true, 'message' => 'Purchase order approved successfully']);
+                // Add purchased items to warehouse stock
+                $query = "SELECT spi.item_id, spi.quantity, spi.unit_cost 
+                         FROM stock_purchase_items spi 
+                         WHERE spi.purchase_id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$purchase_id]);
+                $purchase_items = $stmt->fetchAll();
+                
+                foreach ($purchase_items as $item) {
+                    // Check if item already exists in warehouse
+                    $query = "SELECT current_stock FROM main_warehouse_stock WHERE item_id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$item['item_id']]);
+                    $existing_stock = $stmt->fetch();
+                    
+                    if ($existing_stock) {
+                        // Update existing stock
+                        $new_stock = $existing_stock['current_stock'] + $item['quantity'];
+                        $query = "UPDATE main_warehouse_stock SET current_stock = ?, unit_cost = ? WHERE item_id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$new_stock, $item['unit_cost'], $item['item_id']]);
+                    } else {
+                        // Create new warehouse stock record
+                        $query = "INSERT INTO main_warehouse_stock (item_id, current_stock, unit_cost, minimum_stock) VALUES (?, ?, ?, 10)";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$item['item_id'], $item['quantity'], $item['unit_cost']]);
+                    }
+                    
+                    // Record warehouse movement
+                    $query = "INSERT INTO warehouse_movements (item_id, movement_type, quantity, previous_stock, new_stock, reference_type, notes, user_id) 
+                             VALUES (?, 'in', ?, ?, ?, 'purchase', 'Stock added from purchase order #{$purchase_id}', ?)";
+                    $stmt = $db->prepare($query);
+                    $previous_stock = $existing_stock ? $existing_stock['current_stock'] : 0;
+                    $new_stock = $previous_stock + $item['quantity'];
+                    $stmt->execute([$item['item_id'], $item['quantity'], $previous_stock, $new_stock, $_SESSION['user_id']]);
+                }
+                
+                echo json_encode(['success' => true, 'message' => 'Purchase order approved and stock added to warehouse successfully']);
             } catch (Exception $e) {
                 echo json_encode(['success' => false, 'message' => 'Error approving purchase: ' . $e->getMessage()]);
             }

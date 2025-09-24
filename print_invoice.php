@@ -1,4 +1,4 @@
-    <?php
+<?php
     /**
      * Print Invoice
      * Fast Food POS System
@@ -25,11 +25,13 @@
     }
 
     try {
-        // Get order details
-        $orderQuery = "SELECT o.*, u.name as cashier_name, c.name as customer_name, c.contact as customer_contact, c.address as customer_address, c.postcode as customer_postcode
+        // Get order details with branch information
+        $orderQuery = "SELECT o.*, u.name as cashier_name, c.name as customer_name, c.contact as customer_contact, c.address as customer_address, c.postcode as customer_postcode,
+                             b.name as branch_name, b.address as branch_address, b.phone as branch_phone, b.email as branch_email
                     FROM orders o
                     LEFT JOIN users u ON o.user_id = u.id
                     LEFT JOIN customers c ON o.customer_id = c.id
+                    LEFT JOIN branches b ON o.branch_id = b.id
                     WHERE o.id = ?";
         
         $orderStmt = $db->prepare($orderQuery);
@@ -62,7 +64,7 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Invoice - <?php echo $order['order_number']; ?></title>
+        <title><?php echo htmlspecialchars($order['branch_name'] ?: 'Fast Food POS'); ?> - Invoice <?php echo htmlspecialchars($order['order_number']); ?></title>
         <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
         <link rel="stylesheet" href="assets/css/print-optimized.css">
         <style>
@@ -170,25 +172,26 @@
                     margin-top: 8px !important;
                 }
                 .footer {
-                    padding: 15px 12px !important;
-                    font-size: 18px !important;
+                    padding: 10px 12px !important;
+                    font-size: 10px !important;
                     margin-top: 12px !important;
                 }
                 
                 .footer div {
-                    font-size: 18px !important;
-                    font-weight: 700 !important;
-                    margin-bottom: 8px !important;
-                    line-height: 1.6 !important;
+                    font-size: 10px !important;
+                    font-weight: normal !important;
+                    margin-bottom: 5px !important;
+                    line-height: 1.4 !important;
                 }
                 
-                /* Company name in footer - EXTRA LARGE */
-                .footer div:last-child {
-                    font-size: 22px !important;
-                    font-weight: 900 !important;
-                    margin-top: 12px !important;
-                    text-transform: uppercase !important;
-                    letter-spacing: 1px !important;
+                .footer div strong {
+                    font-size: 12px !important;
+                    font-weight: bold !important;
+                }
+                
+                .footer div div {
+                    font-size: 9px !important;
+                    margin-top: 8px !important;
                 }
                 .header {
                     padding-bottom: 10px !important;
@@ -357,6 +360,7 @@
                 padding: 12px;
                 text-align: center;
                 border-top: 2px solid #000;
+                font-size: 12px;
             }
             
             .qr-section {
@@ -433,14 +437,18 @@
         <div class="invoice-container">
             <!-- Header -->
             <div class="header">
-                <div class="restaurant-name">US FOODS </div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               <div class="restaurant-info">
-                          US Foods Commercial Market<br>
-                          # 1 OPF Colony Peshawar<br>
-                          Phone: 0912614488<br>
-                          03139508243<br>
-                        
-                      </div>
+                <div class="restaurant-name">
+                    <?php echo htmlspecialchars($order['branch_name'] ?: 'Fast Food POS'); ?>
+                </div>
+                <div class="restaurant-info">
+                    <?php echo htmlspecialchars($order['branch_address'] ?: '123 Restaurant Street, City, Country'); ?><br>
+                    <?php if ($order['branch_phone']): ?>
+                    Phone: <?php echo htmlspecialchars($order['branch_phone']); ?><br>
+                    <?php endif; ?>
+                    <?php if ($order['branch_email']): ?>
+                    Email: <?php echo htmlspecialchars($order['branch_email']); ?><br>
+                    <?php endif; ?>
+                </div>
             </div>
             
             <!-- Order Information -->
@@ -456,6 +464,10 @@
                 <div class="order-row">
                     <span class="order-label">Cashier:</span>
                     <span><?php echo htmlspecialchars($order['cashier_name']); ?></span>
+                </div>
+                <div class="order-row">
+                    <span class="order-label">Branch:</span>
+                    <span><?php echo htmlspecialchars($order['branch_name'] ?: 'Main Branch'); ?></span>
                 </div>
                 <div class="order-row">
                     <span class="order-label">Type:</span>
@@ -547,17 +559,21 @@
             <!-- </div> -->
             
             <!-- Footer -->
-            <!-- <div class="footer">
-                <div style="font-size: 10px; color: #666;">
-                    <!-- <?php if (getSetting('company_phone')): ?>
-                        For any queries, please contact us at <?php echo htmlspecialchars(getSetting('company_phone')); ?><br>
-                    <?php else: ?> -->
-                        <!-- For any queries, please contact us<br> -->
+            <div class="footer">
+                <div style="font-size: 12px; color: #666; text-align: center; margin-top: 20px; padding: 10px; border-top: 1px solid #ddd;">
+                    <strong><?php echo htmlspecialchars($order['branch_name'] ?: 'Fast Food POS'); ?></strong><br>
+                    <?php echo htmlspecialchars($order['branch_address'] ?: ''); ?><br>
+                    <?php if ($order['branch_phone']): ?>
+                    Phone: <?php echo htmlspecialchars($order['branch_phone']); ?><br>
                     <?php endif; ?>
-                    <!-- Visit us again!<br> -->
-                    <!-- <?php echo htmlspecialchars(getSetting('company_name') ?: 'PIZZA POS'); ?> -->
-                <!-- </div> -->
-            <!-- </div>  -->
+                    <?php if ($order['branch_email']): ?>
+                    Email: <?php echo htmlspecialchars($order['branch_email']); ?><br>
+                    <?php endif; ?>
+                    <div style="margin-top: 10px; font-size: 10px;">
+                        Thank you for your order! Please visit us again.
+                    </div>
+                </div>
+            </div>
         </div>
         
         <script>

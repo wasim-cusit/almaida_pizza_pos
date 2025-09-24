@@ -25,11 +25,13 @@ if (!$orderId) {
     exit;
 }
 
-// Get order details
-$query = "SELECT o.*, u.name as user_name, u.username, c.name as customer_name, c.contact as customer_phone, c.email as customer_email
+// Get order details with branch information
+$query = "SELECT o.*, u.name as user_name, u.username, c.name as customer_name, c.contact as customer_phone, c.email as customer_email,
+                 b.name as branch_name, b.address as branch_address, b.phone as branch_phone, b.email as branch_email
           FROM orders o 
           LEFT JOIN users u ON o.user_id = u.id 
           LEFT JOIN customers c ON o.customer_id = c.id 
+          LEFT JOIN branches b ON o.branch_id = b.id
           WHERE o.id = ?";
 
 $stmt = $db->prepare($query);
@@ -63,7 +65,9 @@ $qrData = json_encode([
     'total_amount' => $order['total_amount'],
     'items_count' => count($orderItems),
     'timestamp' => $order['created_at'],
-    'pos_system' => 'Fast Food POS'
+    'pos_system' => $order['branch_name'] ?: 'Fast Food POS',
+    'branch_name' => $order['branch_name'],
+    'branch_phone' => $order['branch_phone']
 ]);
 
 $qrCodeURL = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrData);
@@ -74,7 +78,7 @@ $qrCodeURL = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Invoice - <?php echo htmlspecialchars($order['order_number']); ?></title>
+    <title><?php echo htmlspecialchars($order['branch_name'] ?: 'Fast Food POS'); ?> - Order Details <?php echo htmlspecialchars($order['order_number']); ?></title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
@@ -578,10 +582,14 @@ $qrCodeURL = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . 
         <div class="company-info">
             <div class="company-details">
                 <div class="company-left">
-                    <h2><?php echo htmlspecialchars(getSetting('company_name') ?: 'Fast Food POS System'); ?></h2>
-                    <p><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars(getSetting('company_address') ?: '123 Restaurant Street, City, Country'); ?></p>
-                    <p><i class="fas fa-phone"></i> <?php echo htmlspecialchars(getSetting('company_phone') ?: '+1 234 567 8900'); ?></p>
-                    <p><i class="fas fa-phone"></i> <?php echo htmlspecialchars(getSetting('company_email') ?: 'info@fastfoodpos.com'); ?></p>
+                    <h2><?php echo htmlspecialchars($order['branch_name'] ?: 'Fast Food POS System'); ?></h2>
+                    <p><i class="fas fa-map-marker-alt"></i> <?php echo htmlspecialchars($order['branch_address'] ?: '123 Restaurant Street, City, Country'); ?></p>
+                    <?php if ($order['branch_phone']): ?>
+                    <p><i class="fas fa-phone"></i> <?php echo htmlspecialchars($order['branch_phone']); ?></p>
+                    <?php endif; ?>
+                    <?php if ($order['branch_email']): ?>
+                    <p><i class="fas fa-envelope"></i> <?php echo htmlspecialchars($order['branch_email']); ?></p>
+                    <?php endif; ?>
                 </div>
                 <div class="company-right">
                     <div class="invoice-meta">
@@ -635,6 +643,10 @@ $qrCodeURL = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . 
                 <div class="info-row">
                     <span class="info-label">Cashier:</span>
                     <span class="info-value"><?php echo htmlspecialchars($order['user_name'] ?? 'Admin'); ?></span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Branch:</span>
+                    <span class="info-value"><?php echo htmlspecialchars($order['branch_name'] ?: 'Main Branch'); ?></span>
                 </div>
                 <div class="info-row">
                     <span class="info-label">Payment:</span>

@@ -51,20 +51,41 @@ try {
     $db->beginTransaction();
     
     try {
-        // Check if order exists
+        // Check if order exists and belongs to user's branch
         $query = "SELECT id, order_number, order_status FROM orders WHERE id = ?";
+        $params = [$orderId];
+        
+        // Add branch filtering for non-super-admin users
+        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'super_admin') {
+            if (isset($_SESSION['branch_id']) && $_SESSION['branch_id']) {
+                $query .= " AND branch_id = ?";
+                $params[] = $_SESSION['branch_id'];
+            } else {
+                throw new Exception('Access denied: No branch assigned');
+            }
+        }
+        
         $stmt = $db->prepare($query);
-        $stmt->execute([$orderId]);
+        $stmt->execute($params);
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if (!$order) {
-            throw new Exception('Order not found');
+            throw new Exception('Order not found or access denied');
         }
         
-        // Update order status
+        // Update order status (with branch check for non-super-admin users)
         $query = "UPDATE orders SET order_status = ?, updated_at = NOW() WHERE id = ?";
+        $params = [$status, $orderId];
+        
+        if (!isset($_SESSION['user_role']) || $_SESSION['user_role'] !== 'super_admin') {
+            if (isset($_SESSION['branch_id']) && $_SESSION['branch_id']) {
+                $query .= " AND branch_id = ?";
+                $params[] = $_SESSION['branch_id'];
+            }
+        }
+        
         $stmt = $db->prepare($query);
-        $stmt->execute([$status, $orderId]);
+        $stmt->execute($params);
         
         // Commit transaction
         $db->commit();

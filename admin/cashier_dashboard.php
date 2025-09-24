@@ -8,44 +8,64 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] !== 'cashier' && $_S
     exit;
 }
 
-// Get statistics
+// Get statistics filtered by branch
 $stats = [];
+$branch_id = $_SESSION['branch_id'] ?? null;
 
-// Total orders today
+// Total orders today (branch-specific)
 $query = "SELECT COUNT(*) as count, SUM(total_amount) as total FROM orders WHERE DATE(created_at) = CURDATE()";
+$params = [];
+if ($branch_id) {
+    $query .= " AND branch_id = ?";
+    $params[] = $branch_id;
+}
 $stmt = $db->prepare($query);
-$stmt->execute();
+$stmt->execute($params);
 $todayStats = $stmt->fetch();
 $stats['today_orders'] = $todayStats['count'] ?? 0;
 $stats['today_revenue'] = $todayStats['total'] ?? 0;
 
-// Total orders (all time)
+// Total orders (all time, branch-specific)
 $query = "SELECT COUNT(*) as count, SUM(total_amount) as total FROM orders";
+$params = [];
+if ($branch_id) {
+    $query .= " WHERE branch_id = ?";
+    $params[] = $branch_id;
+}
 $stmt = $db->prepare($query);
-$stmt->execute();
+$stmt->execute($params);
 $allTimeStats = $stmt->fetch();
 $stats['total_orders'] = $allTimeStats['count'] ?? 0;
 $stats['total_revenue'] = $allTimeStats['total'] ?? 0;
 
-// Orders by current user (if cashier)
+// Orders by current user (if cashier, still branch-filtered)
 if ($_SESSION['user_role'] === 'cashier') {
     $query = "SELECT COUNT(*) as count, SUM(total_amount) as total FROM orders WHERE user_id = ?";
+    $params = [$_SESSION['user_id']];
+    if ($branch_id) {
+        $query .= " AND branch_id = ?";
+        $params[] = $branch_id;
+    }
     $stmt = $db->prepare($query);
-    $stmt->execute([$_SESSION['user_id']]);
+    $stmt->execute($params);
     $userStats = $stmt->fetch();
     $stats['user_orders'] = $userStats['count'] ?? 0;
     $stats['user_revenue'] = $userStats['total'] ?? 0;
 }
 
-// Recent orders
+// Recent orders (branch-specific)
 $query = "SELECT o.*, u.name as user_name, c.name as customer_name 
           FROM orders o 
           LEFT JOIN users u ON o.user_id = u.id 
-          LEFT JOIN customers c ON o.customer_id = c.id 
-          ORDER BY o.created_at DESC 
-          LIMIT 10";
+          LEFT JOIN customers c ON o.customer_id = c.id";
+$params = [];
+if ($branch_id) {
+    $query .= " WHERE o.branch_id = ?";
+    $params[] = $branch_id;
+}
+$query .= " ORDER BY o.created_at DESC LIMIT 10";
 $stmt = $db->prepare($query);
-$stmt->execute();
+$stmt->execute($params);
 $recentOrders = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -53,7 +73,7 @@ $recentOrders = $stmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Cashier Dashboard - Fast Food POS</title>
+    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>Cashier Dashboard - Fast Food POS</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -269,7 +289,10 @@ $recentOrders = $stmt->fetchAll();
         <div class="admin-header">
             <div>
                 <h1>🍕 Fast Food POS - Cashier Dashboard</h1>
-                <p>Welcome, <?php echo $_SESSION['user_name']; ?> (<?php echo ucfirst($_SESSION['user_role']); ?>)</p>
+                <?php if (isset($_SESSION['branch_name']) && $_SESSION['branch_name']): ?>
+                    <h2 style="color: #20bf55; margin: 5px 0; font-size: 1.2em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
+                <?php endif; ?>
+                <p>Welcome, <?php echo htmlspecialchars($_SESSION['user_name']); ?> (<?php echo ucfirst($_SESSION['user_role']); ?>)</p>
             </div>
             <div>
                 <a href="../index.php" class="btn-admin btn-secondary">

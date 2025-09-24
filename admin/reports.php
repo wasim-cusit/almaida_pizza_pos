@@ -9,7 +9,10 @@ requireAdmin();
 $start_date = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
 $end_date = $_GET['end_date'] ?? date('Y-m-d');
 
-// Get sales statistics
+// Get branch ID for filtering
+$branch_id = $_SESSION['branch_id'] ?? null;
+
+// Get sales statistics (branch-specific)
 $query = "SELECT 
             COUNT(*) as total_orders,
             SUM(total_amount) as total_revenue,
@@ -17,39 +20,51 @@ $query = "SELECT
             COUNT(DISTINCT user_id) as unique_users
           FROM orders 
           WHERE DATE(created_at) BETWEEN ? AND ?";
+$params = [$start_date, $end_date];
+if ($branch_id) {
+    $query .= " AND branch_id = ?";
+    $params[] = $branch_id;
+}
 $stmt = $db->prepare($query);
-$stmt->execute([$start_date, $end_date]);
+$stmt->execute($params);
 $sales_stats = $stmt->fetch();
 
-// Get top selling items
+// Get top selling items (branch-specific)
 $query = "SELECT 
             oi.item_name,
             SUM(oi.quantity) as total_quantity,
             SUM(oi.total_price) as total_revenue
           FROM order_items oi
           JOIN orders o ON oi.order_id = o.id
-          WHERE DATE(o.created_at) BETWEEN ? AND ?
-          GROUP BY oi.item_name
-          ORDER BY total_quantity DESC
-          LIMIT 10";
+          WHERE DATE(o.created_at) BETWEEN ? AND ?";
+$params = [$start_date, $end_date];
+if ($branch_id) {
+    $query .= " AND o.branch_id = ?";
+    $params[] = $branch_id;
+}
+$query .= " GROUP BY oi.item_name ORDER BY total_quantity DESC LIMIT 10";
 $stmt = $db->prepare($query);
-$stmt->execute([$start_date, $end_date]);
+$stmt->execute($params);
 $top_items = $stmt->fetchAll();
 
-// Get daily sales
+// Get daily sales (branch-specific)
 $query = "SELECT 
             DATE(created_at) as date,
             COUNT(*) as orders,
             SUM(total_amount) as revenue
           FROM orders 
-          WHERE DATE(created_at) BETWEEN ? AND ?
-          GROUP BY DATE(created_at)
-          ORDER BY date DESC";
+          WHERE DATE(created_at) BETWEEN ? AND ?";
+$params = [$start_date, $end_date];
+if ($branch_id) {
+    $query .= " AND branch_id = ?";
+    $params[] = $branch_id;
+}
+$query .= " GROUP BY DATE(created_at) ORDER BY date DESC";
 $stmt = $db->prepare($query);
-$stmt->execute([$start_date, $end_date]);
+$stmt->execute($params);
 $daily_sales = $stmt->fetchAll();
 
-// Get category performance
+// Get category performance (branch-specific)
 $query = "SELECT 
             c.name as category_name,
             COUNT(oi.id) as item_count,
@@ -58,11 +73,15 @@ $query = "SELECT
           JOIN orders o ON oi.order_id = o.id
           JOIN items i ON oi.item_id = i.id
           JOIN categories c ON i.category_id = c.id
-          WHERE DATE(o.created_at) BETWEEN ? AND ?
-          GROUP BY c.id, c.name
-          ORDER BY category_revenue DESC";
+          WHERE DATE(o.created_at) BETWEEN ? AND ?";
+$params = [$start_date, $end_date];
+if ($branch_id) {
+    $query .= " AND o.branch_id = ?";
+    $params[] = $branch_id;
+}
+$query .= " GROUP BY c.id, c.name ORDER BY category_revenue DESC";
 $stmt = $db->prepare($query);
-$stmt->execute([$start_date, $end_date]);
+$stmt->execute($params);
 $category_performance = $stmt->fetchAll();
 ?>
 <!DOCTYPE html>
@@ -70,7 +89,7 @@ $category_performance = $stmt->fetchAll();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reports - Fast Food POS</title>
+    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>Reports - Fast Food POS</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -206,6 +225,9 @@ $category_performance = $stmt->fetchAll();
         <div class="admin-header">
             <div>
                 <h1>📊 Sales Reports</h1>
+                <?php if (isset($_SESSION['branch_name']) && $_SESSION['branch_name']): ?>
+                    <h2 style="color: #20bf55; margin: 5px 0; font-size: 1.2em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
+                <?php endif; ?>
                 <p>Analytics and performance insights</p>
             </div>
             <div>

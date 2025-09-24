@@ -110,6 +110,7 @@ CREATE TABLE `stock_distributions` (
   `approved_by` int(11) DEFAULT NULL,
   `dispatched_by` int(11) DEFAULT NULL,
   `received_by` int(11) DEFAULT NULL,
+  `received_at` timestamp NULL DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
   PRIMARY KEY (`id`),

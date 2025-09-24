@@ -17,17 +17,25 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-// Get active orders
+// Get active orders (branch-specific)
 $query = "SELECT o.*, u.name as user_name, c.name as customer_name,
           (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) as item_count
           FROM orders o 
           LEFT JOIN users u ON o.user_id = u.id 
           LEFT JOIN customers c ON o.customer_id = c.id 
-          WHERE o.order_status IN ('pending', 'preparing', 'ready')
-          ORDER BY o.created_at ASC";
+          WHERE o.order_status IN ('pending', 'preparing', 'ready')";
+$params = [];
+
+// Filter by branch if user belongs to a specific branch
+if (isset($_SESSION['branch_id']) && $_SESSION['branch_id']) {
+    $query .= " AND o.branch_id = ?";
+    $params[] = $_SESSION['branch_id'];
+}
+
+$query .= " ORDER BY o.created_at ASC";
 
 $stmt = $db->prepare($query);
-$stmt->execute();
+$stmt->execute($params);
 $activeOrders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -36,7 +44,7 @@ $activeOrders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kitchen Display - Fast Food POS</title>
+    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>Kitchen Display - Fast Food POS</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
@@ -255,6 +263,9 @@ $activeOrders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <body>
     <div class="header">
         <h1><i class="fas fa-utensils"></i> Kitchen Display</h1>
+        <?php if (isset($_SESSION['branch_name']) && $_SESSION['branch_name']): ?>
+            <h2 style="color: #20bf55; margin: 10px 0; font-size: 1.3em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
+        <?php endif; ?>
         <p>Real-time order tracking for kitchen staff</p>
     </div>
     

@@ -23,9 +23,15 @@ $from_date = $_GET['from_date'] ?? '';
 $to_date = $_GET['to_date'] ?? '';
 $search = $_GET['search'] ?? '';
 
-// Build query
+// Build query with branch filtering
 $whereConditions = [];
 $params = [];
+
+// Always filter by user's branch
+if (isset($_SESSION['branch_id']) && $_SESSION['branch_id']) {
+    $whereConditions[] = "o.branch_id = ?";
+    $params[] = $_SESSION['branch_id'];
+}
 
 if ($status) {
     $whereConditions[] = "o.order_status = ?";
@@ -111,7 +117,7 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>View Orders - Admin Panel</title>
+    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>View Orders - Admin Panel</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
@@ -441,6 +447,9 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
             <div class="header-content">
                 <div>
                     <h1><i class="fas fa-receipt"></i> Order Management</h1>
+                    <?php if (isset($_SESSION['branch_name']) && $_SESSION['branch_name']): ?>
+                        <h2 style="color: #20bf55; margin: 5px 0; font-size: 1.2em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
+                    <?php endif; ?>
                     <p>View and manage all orders in the system</p>
                 </div>
                 <div class="header-actions">

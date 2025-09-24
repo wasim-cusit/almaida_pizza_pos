@@ -109,17 +109,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get branches
-$query = "SELECT b.*, 
-          COUNT(DISTINCT u.id) as user_count,
-          COUNT(DISTINCT o.id) as order_count
-          FROM branches b 
-          LEFT JOIN users u ON b.id = u.branch_id 
-          LEFT JOIN orders o ON b.id = o.branch_id 
-          GROUP BY b.id 
-          ORDER BY b.name";
-$stmt = $db->prepare($query);
-$stmt->execute();
+// Get branches (only current user's branch for non-super-admin users)
+$branch_id = $_SESSION['branch_id'] ?? null;
+if ($_SESSION['user_role'] === 'super_admin') {
+    // Super admin can see all branches
+    $query = "SELECT b.*, 
+              COUNT(DISTINCT u.id) as user_count,
+              COUNT(DISTINCT o.id) as order_count
+              FROM branches b 
+              LEFT JOIN users u ON b.id = u.branch_id 
+              LEFT JOIN orders o ON b.id = o.branch_id 
+              GROUP BY b.id 
+              ORDER BY b.name";
+    $stmt = $db->prepare($query);
+    $stmt->execute();
+} else {
+    // Branch admin/cashier can only see their own branch
+    if ($branch_id) {
+        $query = "SELECT b.*, 
+                  COUNT(DISTINCT u.id) as user_count,
+                  COUNT(DISTINCT o.id) as order_count
+                  FROM branches b 
+                  LEFT JOIN users u ON b.id = u.branch_id 
+                  LEFT JOIN orders o ON b.id = o.branch_id 
+                  WHERE b.id = ?
+                  GROUP BY b.id 
+                  ORDER BY b.name";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$branch_id]);
+    } else {
+        // If no branch assigned, show empty result
+        $query = "SELECT b.*, 0 as user_count, 0 as order_count FROM branches b WHERE 1=0";
+        $stmt = $db->prepare($query);
+        $stmt->execute();
+    }
+}
 $branches = $stmt->fetchAll();
 ?>
 
@@ -330,6 +354,9 @@ $branches = $stmt->fetchAll();
         <div class="admin-header">
             <div>
                 <h1>🏢 Manage Branches</h1>
+                <?php if (isset($_SESSION['branch_name']) && $_SESSION['branch_name']): ?>
+                    <h2 style="color: #20bf55; margin: 5px 0; font-size: 1.2em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
+                <?php endif; ?>
                 <p>Add, edit, and manage restaurant branches</p>
             </div>
             <div>

@@ -66,8 +66,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $stmt = $db->prepare($query);
                 $stmt->execute([$admin_username, $hashed_password, $manager_name, $admin_email, $branch_id]);
 
+                // Create default cashier user
+                $cashier_username = strtolower(str_replace(' ', '_', $name)) . '_cashier';
+                $cashier_password = 'cashier123';
+                $hashed_cashier_password = password_hash($cashier_password, PASSWORD_DEFAULT);
+                $query = "INSERT INTO users (username, password, name, email, role, branch_id, is_active, created_at) 
+                         VALUES (?, ?, 'Cashier', ?, 'cashier', ?, 1, NOW())";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$cashier_username, $hashed_cashier_password, 'cashier@' . strtolower(str_replace(' ', '', $name)) . '.com', $branch_id]);
+
                 $db->commit();
-                echo json_encode(['success' => true, 'message' => 'Branch and admin user created successfully']);
+                echo json_encode([
+                    'success' => true, 
+                    'message' => 'Branch created with admin and cashier users',
+                    'branch_id' => $branch_id,
+                    'admin_username' => $admin_username,
+                    'cashier_username' => $cashier_username,
+                    'cashier_password' => $cashier_password
+                ]);
             } catch (Exception $e) {
                 $db->rollBack();
                 echo json_encode(['success' => false, 'message' => 'Error creating branch: ' . $e->getMessage()]);

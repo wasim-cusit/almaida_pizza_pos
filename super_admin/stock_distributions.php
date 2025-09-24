@@ -201,11 +201,165 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $stmt->execute([$distribution_id]);
                 }
                 
+                // Get distribution details
+                $query = "SELECT sd.to_branch_id, sdi.item_id, sdi.requested_quantity, sdi.unit_cost 
+                         FROM stock_distributions sd 
+                         JOIN stock_distribution_items sdi ON sd.id = sdi.distribution_id 
+                         WHERE sd.id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$distribution_id]);
+                $distribution_items = $stmt->fetchAll();
+                
+                $to_branch_id = $distribution_items[0]['to_branch_id'] ?? null;
+                
+                foreach ($distribution_items as $item) {
+                    // Reduce warehouse stock
+                    $query = "SELECT current_stock FROM main_warehouse_stock WHERE item_id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$item['item_id']]);
+                    $warehouse_stock = $stmt->fetch();
+                    
+                    if ($warehouse_stock && $warehouse_stock['current_stock'] >= $item['requested_quantity']) {
+                        $new_warehouse_stock = $warehouse_stock['current_stock'] - $item['requested_quantity'];
+                        $query = "UPDATE main_warehouse_stock SET current_stock = ? WHERE item_id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$new_warehouse_stock, $item['item_id']]);
+                        
+                        // Update distribution item with approved quantity
+                        $query = "UPDATE stock_distribution_items SET approved_quantity = ? WHERE distribution_id = ? AND item_id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$item['requested_quantity'], $distribution_id, $item['item_id']]);
+                        
+                        // Create notification for branch admin
+                        createNotification(
+                            null, // Branch notification
+                            $to_branch_id,
+                            'distribution_approved',
+                            'Distribution Approved',
+                            "Distribution #{$distribution_id} has been approved and is ready for dispatch.",
+                            'medium',
+                            $distribution_id,
+                            'distribution'
+                        );
+                    }
+                }
+                
                 $db->commit();
                 echo json_encode(['success' => true, 'message' => 'Distribution approved successfully']);
             } catch (Exception $e) {
                 $db->rollBack();
                 echo json_encode(['success' => false, 'message' => 'Error approving distribution: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'dispatch_distribution':
+            $distribution_id = (int)$_POST['distribution_id'];
+            
+            try {
+                $db->beginTransaction();
+                
+                // Update distribution status
+                $query = "UPDATE stock_distributions SET status = 'dispatched', dispatched_by = ? WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$_SESSION['user_id'], $distribution_id]);
+                
+                // Get distribution details
+                $query = "SELECT sd.to_branch_id, sdi.item_id, sdi.approved_quantity, sdi.unit_cost 
+                         FROM stock_distributions sd 
+                         JOIN stock_distribution_items sdi ON sd.id = sdi.distribution_id 
+                         WHERE sd.id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$distribution_id]);
+                $distribution_items = $stmt->fetchAll();
+                
+                $to_branch_id = $distribution_items[0]['to_branch_id'] ?? null;
+                
+                foreach ($distribution_items as $item) {
+                    // Update distribution item with dispatched quantity
+                    $query = "UPDATE stock_distribution_items SET dispatched_quantity = ? WHERE distribution_id = ? AND item_id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$item['approved_quantity'], $distribution_id, $item['item_id']]);
+                }
+                
+                // Create notification for branch admin
+                createNotification(
+                    null, // Branch notification
+                    $to_branch_id,
+                    'goods_dispatched',
+                    'Goods Dispatched',
+                    "Distribution #{$distribution_id} has been dispatched and is on the way.",
+                    'high',
+                    $distribution_id,
+                    'distribution'
+                );
+                
+                $db->commit();
+                echo json_encode(['success' => true, 'message' => 'Distribution dispatched successfully']);
+            } catch (Exception $e) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Error dispatching distribution: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'receive_distribution':
+            $distribution_id = (int)$_POST['distribution_id'];
+            
+            try {
+                $db->beginTransaction();
+                
+                // Update distribution status
+                $query = "UPDATE stock_distributions SET status = 'received', received_by = ?, received_at = NOW() WHERE id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$_SESSION['user_id'], $distribution_id]);
+                
+                // Get distribution details
+                $query = "SELECT sd.to_branch_id, sdi.item_id, sdi.dispatched_quantity, sdi.unit_cost 
+                         FROM stock_distributions sd 
+                         JOIN stock_distribution_items sdi ON sd.id = sdi.distribution_id 
+                         WHERE sd.id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$distribution_id]);
+                $distribution_items = $stmt->fetchAll();
+                
+                $to_branch_id = $distribution_items[0]['to_branch_id'] ?? null;
+                
+                foreach ($distribution_items as $item) {
+                    // Update distribution item with received quantity
+                    $query = "UPDATE stock_distribution_items SET received_quantity = ? WHERE distribution_id = ? AND item_id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$item['dispatched_quantity'], $distribution_id, $item['item_id']]);
+                    
+                    // Add to branch stock
+                    $query = "SELECT current_stock FROM branch_items WHERE branch_id = ? AND item_id = ?";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$to_branch_id, $item['item_id']]);
+                    $branch_stock = $stmt->fetch();
+                    
+                    if ($branch_stock) {
+                        // Update existing branch stock
+                        $new_branch_stock = $branch_stock['current_stock'] + $item['dispatched_quantity'];
+                        $query = "UPDATE branch_items SET current_stock = ? WHERE branch_id = ? AND item_id = ?";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$new_branch_stock, $to_branch_id, $item['item_id']]);
+                    } else {
+                        // Create new branch stock record
+                        $query = "INSERT INTO branch_items (branch_id, item_id, current_stock, minimum_stock) VALUES (?, ?, ?, 5)";
+                        $stmt = $db->prepare($query);
+                        $stmt->execute([$to_branch_id, $item['item_id'], $item['dispatched_quantity']]);
+                    }
+                    
+                    // Record stock movement
+                    $query = "INSERT INTO stock_movements (branch_id, item_id, movement_type, quantity, previous_stock, new_stock, reference_type, notes, user_id) 
+                             VALUES (?, ?, 'in', ?, 0, ?, 'distribution_received', 'Stock received from distribution #{$distribution_id}', ?)";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$to_branch_id, $item['item_id'], $item['dispatched_quantity'], $item['dispatched_quantity'], $_SESSION['user_id']]);
+                }
+                
+                $db->commit();
+                echo json_encode(['success' => true, 'message' => 'Distribution marked as received successfully']);
+            } catch (Exception $e) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Error receiving distribution: ' . $e->getMessage()]);
             }
             exit();
             
@@ -417,6 +571,21 @@ function getTopItemsReport($db, $start_date, $end_date) {
     $stmt = $db->prepare($query);
     $stmt->execute($params);
     return $stmt->fetchAll();
+}
+
+// Function to create notifications
+function createNotification($user_id, $branch_id, $type, $title, $message, $priority, $related_id, $related_type) {
+    global $db;
+    
+    try {
+        $query = "INSERT INTO notifications (user_id, branch_id, notification_type, title, message, priority, related_id, related_type) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $db->prepare($query);
+        $stmt->execute([$user_id, $branch_id, $type, $title, $message, $priority, $related_id, $related_type]);
+    } catch (Exception $e) {
+        // Log error but don't fail the main operation
+        error_log("Notification creation failed: " . $e->getMessage());
+    }
 }
 
 // Get statistics with error handling
@@ -838,6 +1007,16 @@ include 'includes/header.php';
                                 <i class="fas fa-check"></i> Approve
                             </button>` : ''
                         }
+                        ${distribution.status === 'approved' ? 
+                            `<button class="btn btn-primary" onclick="dispatchDistribution(${distribution.id})">
+                                <i class="fas fa-truck"></i> Dispatch
+                            </button>` : ''
+                        }
+                        ${distribution.status === 'dispatched' ? 
+                            `<button class="btn btn-warning" onclick="receiveDistribution(${distribution.id})">
+                                <i class="fas fa-truck-loading"></i> Mark Received
+                            </button>` : ''
+                        }
                     </td>
                 </tr>
             `;
@@ -994,6 +1173,58 @@ include 'includes/header.php';
     // View distribution details
     function viewDistribution(distributionId) {
         showNotification('View distribution details functionality - Coming soon!', 'info');
+    }
+
+    // Dispatch distribution
+    function dispatchDistribution(distributionId) {
+        if (confirm('Are you sure you want to dispatch this distribution? This will notify the branch admin.')) {
+            fetch('stock_distributions.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=dispatch_distribution&distribution_id=${distributionId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Distribution dispatched successfully', 'success');
+                    loadDistributions();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error dispatching distribution:', error);
+                showNotification('Error dispatching distribution', 'error');
+            });
+        }
+    }
+
+    // Receive distribution
+    function receiveDistribution(distributionId) {
+        if (confirm('Are you sure you want to mark this distribution as received? This will update branch stock.')) {
+            fetch('stock_distributions.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=receive_distribution&distribution_id=${distributionId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Distribution marked as received successfully', 'success');
+                    loadDistributions();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error receiving distribution:', error);
+                showNotification('Error receiving distribution', 'error');
+            });
+        }
     }
     
     // Reset distribution form

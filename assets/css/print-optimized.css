@@ -1,0 +1,705 @@
+/* 
+ * Print-Optimized CSS for Thermal Printers
+ * Optimized for 80mm thermal receipt printers
+ * Enhanced readability and contrast with MUCH LARGER fonts
+ */
+
+/* Print Media Queries */
+@media print {
+    /* Reset all margins and padding for print */
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    body { 
+        margin: 0 !important; 
+        padding: 0 !important;
+        font-size: 16px !important;
+        width: 80mm !important;
+        min-height: 100vh !important;
+        background: white !important;
+        color: #000000 !important;
+        font-weight: 600 !important;
+    }
+    
+    /* Hide non-printable elements */
+    .no-print, 
+    .print-buttons, 
+    .btn, 
+    button {
+        display: none !important; 
+    }
+    
+    /* Optimize container for thermal printer */
+    .receipt,
+    .invoice-container { 
+        box-shadow: none !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+        width: 80mm !important;
+        max-width: 80mm !important;
+        min-height: 500px !important;
+        padding: 0 !important;
+        background: white !important;
+    }
+    
+    /* Page settings for thermal printer */
+    @page {
+        margin: 0 !important;
+        size: 80mm auto !important;
+        padding: 0 !important;
+    }
+    
+    /* Header section - MUCH LARGER */
+    .header {
+        padding: 15px 12px !important;
+        margin: 0 !important;
+        text-align: center !important;
+        border-bottom: 3px solid #000000 !important;
+        background: white !important;
+    }
+    
+    .header h1,
+    .restaurant-name {
+        font-size: 28px !important;
+        font-weight: 900 !important;
+        margin-bottom: 15px !important;
+        color: #000000 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 2px !important;
+        text-shadow: 2px 2px 0px #000000 !important;
+    }
+    
+    .header p,
+    .restaurant-info {
+        font-size: 16px !important;
+        font-weight: 800 !important;
+        line-height: 1.8 !important;
+        margin-bottom: 8px !important;
+        color: #000000 !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+    
+    /* Company address - EXTRA BOLD */
+    .header p:nth-child(2) {
+        font-size: 18px !important;
+        font-weight: 900 !important;
+        margin-bottom: 12px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1.5px !important;
+    }
+    
+    /* Phone numbers - EXTRA BOLD */
+    .header p:nth-child(3),
+    .header p:nth-child(4) {
+        font-size: 17px !important;
+        font-weight: 900 !important;
+        margin-bottom: 8px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+    
+    /* Website - EXTRA BOLD */
+    .header p:last-child {
+        font-size: 16px !important;
+        font-weight: 900 !important;
+        margin-bottom: 8px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+        text-decoration: underline !important;
+        text-decoration-thickness: 2px !important;
+    }
+    
+    /* Order information - MUCH LARGER */
+    .order-info {
+        padding: 12px 12px !important;
+        margin: 0 !important;
+        border-bottom: 2px solid #000000 !important;
+        background: white !important;
+    }
+    
+    .order-row {
+        margin-bottom: 8px !important;
+        font-size: 16px !important;
+        line-height: 1.5 !important;
+        display: flex !important;
+        align-items: center !important;
+        color: #000000 !important;
+        font-weight: 600 !important;
+    }
+    
+    .order-label {
+        font-weight: 800 !important;
+        color: #000000 !important;
+        font-size: 16px !important;
+    }
+    
+    /* Customer information */
+    .customer-info {
+        padding: 12px 12px !important;
+        margin: 0 !important;
+        border-bottom: 2px solid #000000 !important;
+        background: white !important;
+    }
+    
+    /* Items section - MUCH LARGER */
+    .items-section,
+    .items {
+        padding: 12px 12px !important;
+        margin: 0 !important;
+        background: white !important;
+    }
+    
+    .item-row,
+    .item {
+        margin-bottom: 8px !important;
+        font-size: 16px !important;
+        line-height: 1.5 !important;
+        display: flex !important;
+        align-items: center !important;
+        color: #000000 !important;
+        font-weight: 600 !important;
+        padding: 4px 0 !important;
+    }
+    
+    /* Item columns - MUCH LARGER */
+    .item-name {
+        flex: 3 !important;
+        text-align: left !important;
+        padding-right: 10px !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
+    }
+    
+    .item-qty {
+        flex: 1 !important;
+        text-align: center !important;
+        padding: 0 8px !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+    }
+    
+    .item-price {
+        flex: 1 !important;
+        text-align: right !important;
+        padding-left: 10px !important;
+        font-size: 16px !important;
+        font-weight: 600 !important;
+        color: #000000 !important;
+    }
+    
+    .item-total {
+        flex: 1 !important;
+        text-align: right !important;
+        font-weight: 800 !important;
+        padding-left: 10px !important;
+        font-size: 16px !important;
+        color: #000000 !important;
+    }
+    
+    /* Totals section - MUCH LARGER */
+    .totals-section,
+    .totals {
+        padding: 12px 12px !important;
+        margin: 0 !important;
+        border-top: 3px solid #000000 !important;
+        background: white !important;
+    }
+    
+    .total-row {
+        margin-bottom: 8px !important;
+        font-size: 16px !important;
+        line-height: 1.5 !important;
+        display: flex !important;
+        align-items: center !important;
+        color: #000000 !important;
+        font-weight: 600 !important;
+    }
+    
+    .total-label {
+        flex: 2 !important;
+        text-align: left !important;
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+    }
+    
+    .total-value {
+        flex: 1 !important;
+        text-align: right !important;
+        font-weight: 800 !important;
+        font-size: 16px !important;
+        color: #000000 !important;
+    }
+    
+    /* Grand total - EXTRA LARGE */
+    .grand-total,
+    .total-row.final {
+        font-size: 20px !important;
+        font-weight: 900 !important;
+        margin-top: 12px !important;
+        padding-top: 12px !important;
+        border-top: 3px solid #000000 !important;
+        color: #000000 !important;
+    }
+    
+    /* QR section */
+    .qr-section {
+        padding: 15px 12px !important;
+        margin: 8px 0 !important;
+        text-align: center !important;
+        background: white !important;
+        border: 2px solid #000000 !important;
+    }
+    
+    .qr-code {
+        margin: 8px auto !important;
+    }
+    
+    .qr-text {
+        font-size: 14px !important;
+        color: #000000 !important;
+        margin-top: 8px !important;
+        font-weight: 600 !important;
+    }
+    
+    .thank-you {
+        font-size: 16px !important;
+        font-weight: 700 !important;
+        margin-top: 10px !important;
+        color: #000000 !important;
+    }
+    
+    /* Footer - MUCH LARGER */
+    .footer {
+        padding: 15px 12px !important;
+        margin: 0 !important;
+        border-top: 3px solid #000000 !important;
+        text-align: center !important;
+        background: white !important;
+    }
+    
+    .footer p,
+    .footer div {
+        font-size: 18px !important;
+        font-weight: 700 !important;
+        margin-bottom: 8px !important;
+        color: #000000 !important;
+        line-height: 1.6 !important;
+    }
+    
+    /* Company name in footer - EXTRA LARGE */
+    .footer p:last-child,
+    .footer div:last-child {
+        font-size: 22px !important;
+        font-weight: 900 !important;
+        margin-top: 12px !important;
+        text-transform: uppercase !important;
+        letter-spacing: 1px !important;
+    }
+    
+    /* Special instructions and notes */
+    .special-instructions,
+    .item-row[style*="font-size: 10px"] {
+        font-size: 14px !important;
+        color: #000000 !important;
+        font-weight: 600 !important;
+        padding-left: 15px !important;
+    }
+    
+    /* Payment info */
+    .payment-info {
+        background: #f8f8f8 !important;
+        border: 3px solid #000000 !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        margin: 10px 0 !important;
+        text-align: center !important;
+    }
+    
+    .payment-method {
+        font-weight: 800 !important;
+        color: #000000 !important;
+        font-size: 16px !important;
+    }
+    
+    /* Customer and table info */
+    .customer-info,
+    .table-info {
+        background: #f8f8f8 !important;
+        border: 3px solid #000000 !important;
+        border-radius: 8px !important;
+        padding: 12px !important;
+        margin: 10px 0 !important;
+    }
+    
+    .customer-name,
+    .table-number {
+        font-weight: 800 !important;
+        color: #000000 !important;
+        margin-bottom: 6px !important;
+        font-size: 16px !important;
+    }
+    
+    /* Order type badges */
+    .order-type-badge {
+        padding: 4px 8px !important;
+        border-radius: 4px !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        text-transform: uppercase !important;
+        background: #000000 !important;
+        color: white !important;
+    }
+    
+    /* Ensure all text is black and bold */
+    * {
+        color: #000000 !important;
+    }
+    
+    /* Make borders thicker and darker */
+    .header,
+    .order-info,
+    .customer-info,
+    .items-section,
+    .totals-section,
+    .footer {
+        border-color: #000000 !important;
+        border-width: 2px !important;
+    }
+    
+    /* Additional spacing for better readability */
+    .header,
+    .order-info,
+    .customer-info,
+    .items-section,
+    .totals-section,
+    .footer {
+        padding-bottom: 15px !important;
+        margin-bottom: 15px !important;
+    }
+}
+
+/* Screen styles for preview */
+@media screen {
+    body {
+        font-family: 'Arial', 'Helvetica', sans-serif;
+        background: #f5f5f5;
+        padding: 20px;
+        color: #000;
+        font-size: 18px;
+        line-height: 1.5;
+    }
+    
+    .receipt,
+    .invoice-container {
+        width: 80mm;
+        max-width: 80mm;
+        margin: 0 auto;
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        font-family: 'Arial', 'Helvetica', sans-serif;
+    }
+    
+    .header {
+        text-align: center;
+        border-bottom: 3px solid #000;
+        padding-bottom: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .header h1,
+    .restaurant-name {
+        font-size: 32px;
+        font-weight: 900;
+        margin-bottom: 20px;
+        color: #000;
+        text-transform: uppercase;
+        text-align: center;
+        margin-top: 10px;
+        font-weight: bold;
+        font-size: 32px;
+        letter-spacing: 2px;
+        /* text-shadow: 2px 2px 0px #000; */
+    }
+    
+    .header p,
+    .restaurant-info {
+        font-size: 18px;
+        font-weight: 800;
+        line-height: 1.8;
+        margin-bottom: 10px;
+        color: #000;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Company address - EXTRA BOLD */
+    .header p:nth-child(2) {
+        font-size: 20px;
+        font-weight: 900;
+        margin-bottom: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+    }
+    
+    /* Phone numbers - EXTRA BOLD */
+    .header p:nth-child(3),
+    .header p:nth-child(4) {
+        font-size: 19px;
+        font-weight: 900;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    /* Website - EXTRA BOLD */
+    .header p:last-child {
+        font-size: 18px;
+        font-weight: 900;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        text-decoration: underline;
+        text-decoration-thickness: 2px;
+    }
+    
+    .order-info {
+        padding: 15px 0;
+        margin: 15px 0;
+        border-bottom: 2px solid #000;
+    }
+    
+    .order-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #000;
+    }
+    
+    .order-label {
+        font-weight: 800;
+        color: #000;
+    }
+    
+    .customer-info {
+        padding: 15px 0;
+        margin: 15px 0;
+        border-bottom: 2px solid #000;
+    }
+    
+    .items-section,
+    .items {
+        margin: 20px 0;
+    }
+    
+    .item-row,
+    .item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 10px 0;
+        padding: 8px 0;
+        border-bottom: 1px solid #000;
+        font-size: 18px;
+        line-height: 1.5;
+        color: #000;
+        font-weight: 600;
+    }
+    
+    .item-name {
+        flex: 3;
+        font-weight: 600;
+        word-wrap: break-word;
+        text-align: left;
+        padding-right: 10px;
+        color: #000;
+    }
+    
+    .item-qty {
+        flex: 1;
+        text-align: center;
+        padding: 0 8px;
+        font-weight: 700;
+        color: #000;
+    }
+    
+    .item-price {
+        flex: 1;
+        text-align: right;
+        padding-left: 10px;
+        font-weight: 600;
+        color: #000;
+    }
+    
+    .item-total {
+        flex: 1;
+        text-align: right;
+        font-weight: 800;
+        padding-left: 10px;
+        color: #000;
+    }
+    
+    .totals-section,
+    .totals {
+        border-top: 3px solid #000;
+        margin-top: 20px;
+        padding-top: 20px;
+    }
+    
+    .total-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 10px 0;
+        font-size: 18px;
+        line-height: 1.5;
+        color: #000;
+        font-weight: 600;
+    }
+    
+    .total-label {
+        flex: 2;
+        text-align: left;
+        font-weight: 700;
+        color: #000;
+    }
+    
+    .total-value {
+        flex: 1;
+        text-align: right;
+        font-weight: 800;
+        color: #000;
+    }
+    
+    .grand-total,
+    .total-row.final {
+        font-weight: 900;
+        font-size: 24px;
+        color: #000;
+        border-top: 3px solid #000;
+        padding-top: 15px;
+        margin-top: 15px;
+    }
+    
+    .qr-section {
+        text-align: center;
+        margin: 20px 0;
+        padding: 15px;
+        border: 3px solid #000;
+        border-radius: 8px;
+        background: #fff;
+    }
+    
+    .qr-code img {
+        max-width: 80px;
+        height: auto;
+        border-radius: 4px;
+        margin: 10px 0;
+    }
+    
+    .qr-text {
+        font-size: 16px;
+        color: #000;
+        margin-top: 10px;
+        font-weight: 600;
+    }
+    
+    .thank-you {
+        font-size: 18px;
+        font-weight: 700;
+        margin-top: 12px;
+        color: #000;
+    }
+    
+    .footer {
+        text-align: center;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 3px solid #000;
+        color: #000;
+    }
+    
+    .footer p,
+    .footer div {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 10px;
+        color: #000;
+        line-height: 1.6;
+    }
+    
+    /* Company name in footer - EXTRA LARGE */
+    .footer p:last-child,
+    .footer div:last-child {
+        font-size: 26px;
+        font-weight: 900;
+        margin-top: 15px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    
+    .payment-info {
+        background: #f8f8f8;
+        border: 3px solid #000;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+        text-align: center;
+    }
+    
+    .payment-method {
+        font-weight: 800;
+        color: #000;
+        font-size: 18px;
+    }
+    
+    .customer-info,
+    .table-info {
+        background: #f8f8f8;
+        border: 3px solid #000;
+        border-radius: 8px;
+        padding: 15px;
+        margin: 15px 0;
+    }
+    
+    .customer-name,
+    .table-number {
+        font-weight: 800;
+        color: #000;
+        margin-bottom: 8px;
+        font-size: 18px;
+    }
+    
+    .special-instructions {
+        background: #f8f8f8;
+        border: 2px solid #000;
+        border-radius: 6px;
+        padding: 10px;
+        margin: 8px 0;
+        font-size: 16px;
+        color: #000;
+        font-weight: 600;
+    }
+    
+    .order-type-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        background: #000;
+        color: white;
+    }
+}
+

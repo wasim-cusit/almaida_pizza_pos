@@ -411,7 +411,7 @@ include 'includes/header.php';
         .notification-popup {
             position: fixed;
             top: 20px;
-            left: 20px;
+            right: 20px;
             z-index: 10000;
             max-width: 400px;
             min-width: 300px;
@@ -419,7 +419,7 @@ include 'includes/header.php';
             border-radius: 8px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
             border-left: 4px solid #28a745;
-            transform: translateX(-100%);
+            transform: translateX(100%);
             opacity: 0;
             transition: all 0.3s ease;
         }
@@ -557,7 +557,7 @@ include 'includes/header.php';
             </div>
         </div>
         
-        <!-- Success/Error messages are now handled by JavaScript popups -->
+        <!-- Success/Error messages are now handled by JavaScript popups (top-right) -->
         
         <!-- Users Table -->
         <table class="users-table">
@@ -707,7 +707,7 @@ include 'includes/header.php';
             console.error('JavaScript error on load:', e);
         }
         
-        // Clear URL parameters and show popup notifications
+        // Clear URL parameters and show popup notifications (top-right)
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
             const success = urlParams.get('success');

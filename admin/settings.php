@@ -73,30 +73,7 @@ foreach ($defaults as $key => $default) {
 
 include 'includes/header.php';
 ?>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Override main CSS for admin pages to enable scrolling */
-        body {
-            overflow: auto !important;
-            height: auto !important;
-            min-height: 100vh;
-        }
-        
-        .admin-container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
         
         .settings-form {
             background: white;
@@ -165,24 +142,41 @@ include 'includes/header.php';
             width: auto;
         }
         
-        .btn-admin {
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-start;
+            margin-top: 30px;
+        }
+        
+        .form-actions .btn {
             padding: 12px 24px;
             border: none;
             border-radius: 8px;
             cursor: pointer;
             font-weight: 500;
             text-decoration: none;
-            display: inline-block;
-            text-align: center;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
             transition: all 0.3s ease;
         }
         
-        .btn-primary { background: #20bf55; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
+        .form-actions .btn-primary {
+            background: linear-gradient(135deg, #20bf55, #1a9f47);
+            color: white;
+            box-shadow: 0 4px 15px rgba(32, 191, 85, 0.3);
+        }
         
-        .btn-admin:hover {
-            opacity: 0.9;
-            transform: translateY(-1px);
+        .form-actions .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+            color: white;
+            box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+        }
+        
+        .form-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.2);
         }
         
         .success-message {
@@ -202,19 +196,39 @@ include 'includes/header.php';
             margin-bottom: 20px;
             border-left: 4px solid #2196f3;
         }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .settings-form {
+                padding: 20px;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-section {
+                margin-bottom: 20px;
+            }
+        }
+        
+        /* Dark mode adjustments */
+        .dark-mode .form-actions .btn-primary {
+            background: linear-gradient(135deg, #20bf55, #1a9f47);
+        }
+        
+        .dark-mode .form-actions .btn-secondary {
+            background: linear-gradient(135deg, #6c757d, #5a6268);
+        }
     </style>
 </head>
 <body>
-    <div class="admin-container">
-        <div class="admin-header">
+    <div class="admin-section">
+        <div class="page-header">
             <div>
-                <h1>⚙️ System Settings</h1>
-                <p>Configure POS system preferences</p>
-            </div>
-            <div>
-                <a href="index.php" class="btn-admin btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
+                <h2><i class="fas fa-cog"></i> System Settings</h2>
+                <p>Configure global POS system preferences (affects all branches)</p>
             </div>
         </div>
         
@@ -333,15 +347,16 @@ include 'includes/header.php';
             </div>
             
             <!-- Action Buttons -->
-            <div class="form-section">
-                <button type="submit" class="btn-admin btn-primary">
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
                     <i class="fas fa-save"></i> Save Settings
                 </button>
-                <a href="index.php" class="btn-admin btn-secondary">
+                <a href="index.php" class="btn btn-secondary">
                     <i class="fas fa-times"></i> Cancel
                 </a>
             </div>
         </form>
+    </div>
     </div>
     
     <script>
@@ -392,4 +407,5 @@ include 'includes/header.php';
         form.addEventListener('submit', function() {
             localStorage.removeItem('pos_settings_form');
         });
+    </script>
 <?php include 'includes/footer.php'; ?> 

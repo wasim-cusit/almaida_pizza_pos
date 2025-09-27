@@ -12,8 +12,136 @@ $page_title = "Shift Schedule";
 
 // Get current user's branch
 $branch_id = $_SESSION['branch_id'] ?? null;
-if (!$branch_id) {
+$user_role = $_SESSION['user_role'] ?? null;
+
+// Super admin can see all branches, others need branch assignment
+if ($user_role !== 'super_admin' && !$branch_id) {
     die('No branch assigned to your account. Please contact super admin.');
+}
+
+// Ensure required columns exist in shift_schedules table
+try {
+    // Check and add fingerprint_id column
+    $checkColumn = "SHOW COLUMNS FROM shift_schedules LIKE 'fingerprint_id'";
+    $result = $db->query($checkColumn);
+    if ($result->rowCount() === 0) {
+        $addColumn = "ALTER TABLE shift_schedules ADD COLUMN fingerprint_id VARCHAR(50) NULL AFTER notes";
+        $db->exec($addColumn);
+    }
+    
+    // Check and add is_worker column
+    $checkColumn = "SHOW COLUMNS FROM shift_schedules LIKE 'is_worker'";
+    $result = $db->query($checkColumn);
+    if ($result->rowCount() === 0) {
+        $addColumn = "ALTER TABLE shift_schedules ADD COLUMN is_worker TINYINT(1) NOT NULL DEFAULT 0 AFTER fingerprint_id";
+        $db->exec($addColumn);
+    }
+} catch (Exception $e) {
+    // Columns might already exist or table doesn't exist yet
+}
+
+// Handle template download (GET request)
+if (isset($_GET['action']) && $_GET['action'] === 'download_template') {
+    try {
+        // Try to use PhpSpreadsheet for Excel format
+        require_once '../vendor/autoload.php';
+        
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="shift_schedule_template.xlsx"');
+        
+        $spreadsheet = new \PhpOffice\PhpSpreadsheet\Spreadsheet();
+        $sheet = $spreadsheet->getActiveSheet();
+        
+        // Add headers
+        $headers = [
+            'Employee ID',
+            'Shift Date (YYYY-MM-DD)',
+            'Start Time (HH:MM)',
+            'End Time (HH:MM)',
+            'Shift Type',
+            'Notes',
+            'Fingerprint ID (Optional)'
+        ];
+        
+        $sheet->fromArray($headers, null, 'A1');
+        
+        // Style headers
+        $headerStyle = [
+            'font' => ['bold' => true],
+            'fill' => [
+                'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
+                'startColor' => ['rgb' => 'E3F2FD']
+            ]
+        ];
+        $sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
+        
+        // Add sample data
+        $sampleData = [
+            ['1', '2024-01-15', '09:00', '17:00', 'full_day', 'Regular shift', 'FP001'],
+            ['2', '2024-01-15', '14:00', '22:00', 'afternoon', 'Evening shift', 'FP002']
+        ];
+        
+        $sheet->fromArray($sampleData, null, 'A2');
+        
+        // Add instructions
+        $instructions = [
+            '',
+            'INSTRUCTIONS:',
+            '1. Employee ID: Must match existing employee ID in your branch',
+            '2. Shift Date: Format YYYY-MM-DD (e.g., 2024-01-15)',
+            '3. Start/End Time: Format HH:MM (e.g., 09:00, 17:30)',
+            '4. Shift Type: full_day, morning, afternoon, evening, night',
+            '5. Notes: Optional additional information',
+            '6. Fingerprint ID: Optional for biometric device integration',
+            '',
+            'VALID SHIFT TYPES:',
+            '• full_day - Full day shift',
+            '• morning - Morning shift',
+            '• afternoon - Afternoon shift', 
+            '• evening - Evening shift',
+            '• night - Night shift'
+        ];
+        
+        $sheet->fromArray($instructions, null, 'A4');
+        
+        // Auto-size columns
+        foreach (range('A', 'G') as $col) {
+            $sheet->getColumnDimension($col)->setAutoSize(true);
+        }
+        
+        $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+        $writer->save('php://output');
+        exit();
+        
+    } catch (Exception $e) {
+        // Fallback to CSV format
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="shift_schedule_template.csv"');
+        
+        // CSV Headers
+        echo "Employee ID,Shift Date (YYYY-MM-DD),Start Time (HH:MM),End Time (HH:MM),Shift Type,Notes,Fingerprint ID (Optional)\n";
+        
+        // Sample data
+        echo "1,2024-01-15,09:00,17:00,full_day,Regular shift,FP001\n";
+        echo "2,2024-01-15,14:00,22:00,afternoon,Evening shift,FP002\n";
+        
+        echo "\n";
+        echo "INSTRUCTIONS:\n";
+        echo "1. Employee ID: Must match existing employee ID in your branch\n";
+        echo "2. Shift Date: Format YYYY-MM-DD (e.g., 2024-01-15)\n";
+        echo "3. Start/End Time: Format HH:MM (e.g., 09:00, 17:30)\n";
+        echo "4. Shift Type: full_day, morning, afternoon, evening, night\n";
+        echo "5. Notes: Optional additional information\n";
+        echo "6. Fingerprint ID: Optional for biometric device integration\n";
+        echo "\n";
+        echo "VALID SHIFT TYPES:\n";
+        echo "• full_day - Full day shift\n";
+        echo "• morning - Morning shift\n";
+        echo "• afternoon - Afternoon shift\n";
+        echo "• evening - Evening shift\n";
+        echo "• night - Night shift\n";
+        exit();
+    }
 }
 
 // Handle AJAX requests
@@ -28,26 +156,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $end_time = $_POST['end_time'];
             $shift_type = $_POST['shift_type'];
             $notes = sanitize($_POST['notes'] ?? '');
+            $is_worker = (int)($_POST['is_worker'] ?? 0);
             
             try {
                 $db->beginTransaction();
                 
                 // Check if schedule already exists
-                $query = "SELECT id FROM shift_schedules WHERE user_id = ? AND shift_date = ? AND start_time = ?";
+                $query = "SELECT id FROM shift_schedules WHERE user_id = ? AND shift_date = ? AND start_time = ? AND is_worker = ?";
                 $stmt = $db->prepare($query);
-                $stmt->execute([$user_id, $shift_date, $start_time]);
+                $stmt->execute([$user_id, $shift_date, $start_time, $is_worker]);
                 if ($stmt->fetch()) {
-                    throw new Exception('Schedule already exists for this user, date, and time');
+                    $personType = $is_worker ? 'worker' : 'employee';
+                    throw new Exception("Schedule already exists for this $personType, date, and time");
                 }
                 
                 // Create schedule
-                $query = "INSERT INTO shift_schedules (branch_id, user_id, shift_date, start_time, end_time, shift_type, notes, created_by) 
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+                $query = "INSERT INTO shift_schedules (branch_id, user_id, shift_date, start_time, end_time, shift_type, notes, is_worker, created_by) 
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $db->prepare($query);
-                $stmt->execute([$branch_id, $user_id, $shift_date, $start_time, $end_time, $shift_type, $notes, $_SESSION['user_id']]);
+                $stmt->execute([$branch_id, $user_id, $shift_date, $start_time, $end_time, $shift_type, $notes, $is_worker, $_SESSION['user_id']]);
                 
                 $db->commit();
-                echo json_encode(['success' => true, 'message' => 'Shift schedule created successfully']);
+                $personType = $is_worker ? 'worker' : 'employee';
+                echo json_encode(['success' => true, 'message' => "Shift schedule created successfully for $personType"]);
             } catch (Exception $e) {
                 $db->rollBack();
                 echo json_encode(['success' => false, 'message' => 'Error creating schedule: ' . $e->getMessage()]);
@@ -101,18 +232,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $end_date = $_POST['end_date'] ?? date('Y-m-d', strtotime('+7 days'));
             
             try {
-                $query = "SELECT ss.*, u.name as user_name, u2.name as created_by_name,
-                         sa.actual_start_time, sa.actual_end_time, sa.total_hours, sa.status as attendance_status
-                         FROM shift_schedules ss
-                         JOIN users u ON ss.user_id = u.id
-                         LEFT JOIN users u2 ON ss.created_by = u2.id
-                         LEFT JOIN shift_attendance sa ON ss.id = sa.shift_schedule_id
-                         WHERE ss.branch_id = ? AND ss.shift_date BETWEEN ? AND ?
-                         ORDER BY ss.shift_date, ss.start_time";
-                $stmt = $db->prepare($query);
-                $stmt->execute([$branch_id, $start_date, $end_date]);
-                $schedules = $stmt->fetchAll();
+                // Build query based on user role
+                if ($_SESSION['user_role'] === 'super_admin') {
+                    $query = "SELECT ss.*, 
+                             CASE 
+                                 WHEN ss.is_worker = 1 THEN w.name 
+                                 ELSE u.name 
+                             END as user_name,
+                             u2.name as created_by_name, b.name as branch_name,
+                             sa.actual_start_time, sa.actual_end_time, sa.total_hours, sa.status as attendance_status
+                             FROM shift_schedules ss
+                             LEFT JOIN users u ON (ss.user_id = u.id AND ss.is_worker = 0)
+                             LEFT JOIN workers w ON (ss.user_id = w.id AND ss.is_worker = 1)
+                             LEFT JOIN users u2 ON ss.created_by = u2.id
+                             LEFT JOIN branches b ON ss.branch_id = b.id
+                             LEFT JOIN shift_attendance sa ON ss.id = sa.shift_schedule_id
+                             WHERE ss.shift_date BETWEEN ? AND ?
+                             ORDER BY ss.shift_date, ss.start_time";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$start_date, $end_date]);
+                } else {
+                    $query = "SELECT ss.*, 
+                             CASE 
+                                 WHEN ss.is_worker = 1 THEN w.name 
+                                 ELSE u.name 
+                             END as user_name,
+                             u2.name as created_by_name,
+                             sa.actual_start_time, sa.actual_end_time, sa.total_hours, sa.status as attendance_status
+                             FROM shift_schedules ss
+                             LEFT JOIN users u ON (ss.user_id = u.id AND ss.is_worker = 0)
+                             LEFT JOIN workers w ON (ss.user_id = w.id AND ss.is_worker = 1)
+                             LEFT JOIN users u2 ON ss.created_by = u2.id
+                             LEFT JOIN shift_attendance sa ON ss.id = sa.shift_schedule_id
+                             WHERE ss.branch_id = ? AND ss.shift_date BETWEEN ? AND ?
+                             ORDER BY ss.shift_date, ss.start_time";
+                    $stmt = $db->prepare($query);
+                    $stmt->execute([$branch_id, $start_date, $end_date]);
+                }
                 
+                $schedules = $stmt->fetchAll();
                 echo json_encode(['success' => true, 'schedules' => $schedules]);
             } catch (Exception $e) {
                 echo json_encode(['success' => false, 'message' => 'Error loading schedules: ' . $e->getMessage()]);
@@ -121,17 +279,243 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             
         case 'get_branch_users':
             try {
-                // Only show branch staff (admin, cashier, staff) - exclude super_admin users
-                $query = "SELECT id, name, role FROM users 
+                $allPeople = [];
+                
+                // Get branch staff (admin, cashier, staff) - exclude super_admin users
+                $query = "SELECT id, name, role, 'user' as type FROM users 
                          WHERE branch_id = ? AND is_active = 1 AND role != 'super_admin' 
                          ORDER BY name";
                 $stmt = $db->prepare($query);
                 $stmt->execute([$branch_id]);
                 $users = $stmt->fetchAll();
                 
-                echo json_encode(['success' => true, 'users' => $users]);
+                // Add users to the list
+                foreach ($users as $user) {
+                    $allPeople[] = [
+                        'id' => $user['id'],
+                        'name' => $user['name'] . ' (' . ucfirst($user['role']) . ')',
+                        'type' => 'user',
+                        'original_name' => $user['name']
+                    ];
+                }
+                
+                // Get workers from current branch
+                $query = "SELECT id, worker_id, name, position FROM workers 
+                         WHERE branch_id = ? AND is_active = 1 
+                         ORDER BY name";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$branch_id]);
+                $workers = $stmt->fetchAll();
+                
+                // Add workers to the list
+                foreach ($workers as $worker) {
+                    $allPeople[] = [
+                        'id' => $worker['id'],
+                        'name' => $worker['name'] . ' (' . $worker['worker_id'] . ' - ' . $worker['position'] . ')',
+                        'type' => 'worker',
+                        'worker_id' => $worker['worker_id'],
+                        'original_name' => $worker['name']
+                    ];
+                }
+                
+                // Sort by name
+                usort($allPeople, function($a, $b) {
+                    return strcmp($a['original_name'], $b['original_name']);
+                });
+                
+                echo json_encode(['success' => true, 'users' => $allPeople]);
             } catch (Exception $e) {
                 echo json_encode(['success' => false, 'message' => 'Error loading users: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'get_branch_workers':
+            try {
+                // Get workers from current branch
+                $query = "SELECT id, worker_id, name, position, fingerprint_id FROM workers 
+                         WHERE branch_id = ? AND is_active = 1 
+                         ORDER BY name";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$branch_id]);
+                $workers = $stmt->fetchAll();
+                
+                echo json_encode(['success' => true, 'workers' => $workers]);
+            } catch (Exception $e) {
+                echo json_encode(['success' => false, 'message' => 'Error loading workers: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'add_worker':
+            $worker_id = sanitize($_POST['worker_id'] ?? '');
+            $name = sanitize($_POST['name'] ?? '');
+            $position = sanitize($_POST['position'] ?? '');
+            $phone = sanitize($_POST['phone'] ?? '');
+            $fingerprint_id = sanitize($_POST['fingerprint_id'] ?? '');
+            
+            try {
+                $db->beginTransaction();
+                
+                // Check if worker_id already exists
+                $query = "SELECT id FROM workers WHERE worker_id = ?";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$worker_id]);
+                if ($stmt->fetch()) {
+                    throw new Exception('Worker ID already exists');
+                }
+                
+                // Add worker
+                $query = "INSERT INTO workers (branch_id, worker_id, name, position, phone, fingerprint_id) 
+                         VALUES (?, ?, ?, ?, ?, ?)";
+                $stmt = $db->prepare($query);
+                $stmt->execute([$branch_id, $worker_id, $name, $position, $phone, $fingerprint_id]);
+                
+                $db->commit();
+                echo json_encode(['success' => true, 'message' => 'Worker added successfully']);
+            } catch (Exception $e) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Error adding worker: ' . $e->getMessage()]);
+            }
+            exit();
+            
+        case 'import_excel':
+            if (!isset($_FILES['excel_file'])) {
+                echo json_encode(['success' => false, 'message' => 'No file uploaded']);
+                exit();
+            }
+            
+            $file = $_FILES['excel_file'];
+            $fileType = pathinfo($file['name'], PATHINFO_EXTENSION);
+            
+            if ($fileType !== 'xlsx' && $fileType !== 'xls' && $fileType !== 'csv') {
+                echo json_encode(['success' => false, 'message' => 'Please upload a valid Excel or CSV file (.xlsx, .xls, or .csv)']);
+                exit();
+            }
+            
+            try {
+                $rows = [];
+                
+                if ($fileType === 'csv') {
+                    // Handle CSV file
+                    $handle = fopen($file['tmp_name'], 'r');
+                    while (($data = fgetcsv($handle, 1000, ',')) !== FALSE) {
+                        $rows[] = $data;
+                    }
+                    fclose($handle);
+                } else {
+                    // Handle Excel file
+                    require_once '../vendor/autoload.php';
+                    
+                    $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($file['tmp_name']);
+                    $worksheet = $spreadsheet->getActiveSheet();
+                    $rows = $worksheet->toArray();
+                }
+                
+                // Skip header row
+                array_shift($rows);
+                
+                $db->beginTransaction();
+                $imported = 0;
+                $errors = [];
+                
+                foreach ($rows as $index => $row) {
+                    $rowNum = $index + 2; // +2 because we skipped header and array is 0-indexed
+                    
+                    // Validate required fields
+                    if (empty($row[0]) || empty($row[1]) || empty($row[2]) || empty($row[3])) {
+                        $errors[] = "Row $rowNum: Missing required data (Employee ID, Date, Start Time, End Time)";
+                        continue;
+                    }
+                    
+                    $employee_id = trim($row[0]);
+                    $shift_date = trim($row[1]);
+                    $start_time = trim($row[2]);
+                    $end_time = trim($row[3]);
+                    $shift_type = trim($row[4] ?? 'full_day');
+                    $notes = trim($row[5] ?? '');
+                    $fingerprint_id = trim($row[6] ?? ''); // For fingerprint device integration
+                    
+                    // Validate date format
+                    if (!DateTime::createFromFormat('Y-m-d', $shift_date)) {
+                        $errors[] = "Row $rowNum: Invalid date format. Use YYYY-MM-DD";
+                        continue;
+                    }
+                    
+                    // Validate time format
+                    if (!DateTime::createFromFormat('H:i:s', $start_time) && !DateTime::createFromFormat('H:i', $start_time)) {
+                        $errors[] = "Row $rowNum: Invalid start time format. Use HH:MM or HH:MM:SS";
+                        continue;
+                    }
+                    
+                    if (!DateTime::createFromFormat('H:i:s', $end_time) && !DateTime::createFromFormat('H:i', $end_time)) {
+                        $errors[] = "Row $rowNum: Invalid end time format. Use HH:MM or HH:MM:SS";
+                        continue;
+                    }
+                    
+                    // Check if user or worker exists in this branch
+                    $isWorker = false;
+                    $actualEmployeeId = null;
+                    
+                    // First check if it's a user
+                    $userQuery = "SELECT id FROM users WHERE id = ? AND branch_id = ? AND is_active = 1";
+                    $userStmt = $db->prepare($userQuery);
+                    $userStmt->execute([$employee_id, $branch_id]);
+                    $userResult = $userStmt->fetch();
+                    
+                    if ($userResult) {
+                        $actualEmployeeId = $userResult['id'];
+                        $isWorker = false;
+                    } else {
+                        // Check if it's a worker
+                        $workerQuery = "SELECT id FROM workers WHERE worker_id = ? AND branch_id = ? AND is_active = 1";
+                        $workerStmt = $db->prepare($workerQuery);
+                        $workerStmt->execute([$employee_id, $branch_id]);
+                        $workerResult = $workerStmt->fetch();
+                        
+                        if ($workerResult) {
+                            $actualEmployeeId = $workerResult['id'];
+                            $isWorker = true;
+                        }
+                    }
+                    
+                    if (!$actualEmployeeId) {
+                        $errors[] = "Row $rowNum: Employee/Worker ID $employee_id not found in this branch";
+                        continue;
+                    }
+                    
+                    // Check if schedule already exists
+                    $existingQuery = "SELECT id FROM shift_schedules WHERE user_id = ? AND shift_date = ? AND start_time = ? AND is_worker = ?";
+                    $existingStmt = $db->prepare($existingQuery);
+                    $existingStmt->execute([$actualEmployeeId, $shift_date, $start_time, $isWorker ? 1 : 0]);
+                    
+                    if ($existingStmt->fetch()) {
+                        $errors[] = "Row $rowNum: Schedule already exists for this " . ($isWorker ? 'worker' : 'employee') . ", date, and time";
+                        continue;
+                    }
+                    
+                    // Insert schedule
+                    $insertQuery = "INSERT INTO shift_schedules (branch_id, user_id, shift_date, start_time, end_time, shift_type, notes, fingerprint_id, is_worker, created_by) 
+                                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                    $insertStmt = $db->prepare($insertQuery);
+                    $insertStmt->execute([$branch_id, $actualEmployeeId, $shift_date, $start_time, $end_time, $shift_type, $notes, $fingerprint_id, $isWorker ? 1 : 0, $_SESSION['user_id']]);
+                    
+                    $imported++;
+                }
+                
+                $db->commit();
+                
+                $message = "Successfully imported $imported schedules";
+                if (!empty($errors)) {
+                    $message .= ". " . count($errors) . " errors occurred: " . implode(', ', array_slice($errors, 0, 5));
+                    if (count($errors) > 5) {
+                        $message .= "... and " . (count($errors) - 5) . " more";
+                    }
+                }
+                
+                echo json_encode(['success' => true, 'message' => $message, 'imported' => $imported, 'errors' => $errors]);
+                
+            } catch (Exception $e) {
+                $db->rollBack();
+                echo json_encode(['success' => false, 'message' => 'Error importing file: ' . $e->getMessage()]);
             }
             exit();
             
@@ -228,29 +612,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 // Get statistics
 $stats = [];
 
+// Build WHERE clause based on user role
+$whereClause = $user_role === 'super_admin' ? '' : 'WHERE branch_id = ?';
+$params = $user_role === 'super_admin' ? [] : [$branch_id];
+
 // Today's schedules
-$query = "SELECT COUNT(*) as total FROM shift_schedules WHERE branch_id = ? AND shift_date = CURDATE()";
+$query = "SELECT COUNT(*) as total FROM shift_schedules " . $whereClause . " AND shift_date = CURDATE()";
 $stmt = $db->prepare($query);
-$stmt->execute([$branch_id]);
+$stmt->execute($params);
 $stats['today_schedules'] = $stmt->fetch()['total'] ?? 0;
 
 // Active shifts
-$query = "SELECT COUNT(*) as active FROM shift_schedules WHERE branch_id = ? AND shift_date = CURDATE() AND status = 'started'";
+$query = "SELECT COUNT(*) as active FROM shift_schedules " . $whereClause . " AND shift_date = CURDATE() AND status = 'started'";
 $stmt = $db->prepare($query);
-$stmt->execute([$branch_id]);
+$stmt->execute($params);
 $stats['active_shifts'] = $stmt->fetch()['active'] ?? 0;
 
 // This week's schedules
-$query = "SELECT COUNT(*) as weekly FROM shift_schedules WHERE branch_id = ? AND shift_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)";
+$query = "SELECT COUNT(*) as weekly FROM shift_schedules " . $whereClause . " AND shift_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)";
 $stmt = $db->prepare($query);
-$stmt->execute([$branch_id]);
+$stmt->execute($params);
 $stats['weekly_schedules'] = $stmt->fetch()['weekly'] ?? 0;
 
-// Get branch name
-$query = "SELECT name FROM branches WHERE id = ?";
-$stmt = $db->prepare($query);
-$stmt->execute([$branch_id]);
-$branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
+// Get branch name(s)
+if ($user_role === 'super_admin') {
+    $branch_name = 'All Branches (Super Admin)';
+} else {
+    $query = "SELECT name FROM branches WHERE id = ?";
+    $stmt = $db->prepare($query);
+    $stmt->execute([$branch_id]);
+    $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
+}
 
 include 'includes/header.php';
 ?>
@@ -652,6 +1044,15 @@ include 'includes/header.php';
         <div class="section-header">
             <h2><i class="fas fa-calendar-week"></i> Shift Schedules</h2>
             <div class="header-actions">
+                <button class="btn btn-info" onclick="downloadTemplate()">
+                    <i class="fas fa-download"></i> Download Template
+                </button>
+                <button class="btn btn-warning" onclick="showImportModal()">
+                    <i class="fas fa-file-excel"></i> Import Excel
+                </button>
+                <button class="btn btn-primary" onclick="showManageWorkersModal()">
+                    <i class="fas fa-users"></i> Manage Workers
+                </button>
                 <button class="btn btn-success" onclick="showCreateScheduleModal()">
                     <i class="fas fa-plus"></i> Create Schedule
                 </button>
@@ -665,6 +1066,119 @@ include 'includes/header.php';
         </div>
     </div>
 
+    <!-- Manage Workers Modal -->
+    <div id="manage-workers-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('manage-workers-modal')">&times;</span>
+            <h3><i class="fas fa-users"></i> Manage Workers</h3>
+            
+            <div style="margin-bottom: 20px;">
+                <button class="btn btn-success" onclick="showAddWorkerModal()">
+                    <i class="fas fa-plus"></i> Add New Worker
+                </button>
+            </div>
+            
+            <div id="workers-container">
+                <p style="text-align: center; color: #666; padding: 20px;">
+                    Loading workers...
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Worker Modal -->
+    <div id="add-worker-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('add-worker-modal')">&times;</span>
+            <h3><i class="fas fa-user-plus"></i> Add New Worker</h3>
+            
+            <form id="add-worker-form">
+                <div class="form-group">
+                    <label>Worker ID</label>
+                    <input type="text" id="worker-id" name="worker_id" required placeholder="e.g., W001">
+                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
+                        <i class="fas fa-info-circle"></i> Unique identifier for the worker
+                    </small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="worker-name" name="name" required placeholder="Enter worker's full name">
+                </div>
+                
+                <div class="form-group">
+                    <label>Position</label>
+                    <input type="text" id="worker-position" name="position" required placeholder="e.g., Kitchen Helper, Cleaner">
+                </div>
+                
+                <div class="form-group">
+                    <label>Phone Number (Optional)</label>
+                    <input type="tel" id="worker-phone" name="phone" placeholder="+92-300-1234567">
+                </div>
+                
+                <div class="form-group">
+                    <label>Fingerprint ID (Optional)</label>
+                    <input type="text" id="worker-fingerprint" name="fingerprint_id" placeholder="e.g., FP001">
+                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
+                        <i class="fas fa-info-circle"></i> For biometric device integration
+                    </small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('add-worker-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Add Worker</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import Excel Modal -->
+    <div id="import-excel-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('import-excel-modal')">&times;</span>
+            <h3><i class="fas fa-file-excel"></i> Import Shift Schedules from Excel</h3>
+            
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <h4 style="margin: 0 0 10px 0; color: #495057;">📋 Instructions:</h4>
+                <ul style="margin: 0; padding-left: 20px; color: #6c757d;">
+                    <li>Download the Excel template first to see the required format</li>
+                    <li>Fill in the employee/worker schedules following the template</li>
+                    <li>Employee ID must match existing employees or workers in your branch</li>
+                    <li>Use YYYY-MM-DD format for dates (e.g., 2024-01-15)</li>
+                    <li>Use HH:MM format for times (e.g., 09:00, 17:30)</li>
+                    <li>Fingerprint ID is optional for biometric device integration</li>
+                    <li>Workers don't need POS login access - they only track attendance</li>
+                </ul>
+            </div>
+            
+            <form id="import-excel-form" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="excel-file">Select Excel or CSV File (.xlsx, .xls, or .csv)</label>
+                    <input type="file" id="excel-file" name="excel_file" accept=".xlsx,.xls,.csv" required>
+                    <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
+                        <i class="fas fa-info-circle"></i> Maximum file size: 10MB
+                    </small>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('import-excel-modal')">Cancel</button>
+                    <button type="button" class="btn btn-info" onclick="downloadTemplate()">
+                        <i class="fas fa-download"></i> Download Template
+                    </button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-upload"></i> Import Schedules
+                    </button>
+                </div>
+            </form>
+            
+            <div id="import-progress" style="display: none; margin-top: 20px;">
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; text-align: center;">
+                    <i class="fas fa-spinner fa-spin"></i> Importing schedules, please wait...
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Create Schedule Modal -->
     <div id="create-schedule-modal" class="modal">
         <div class="modal-content">
@@ -673,12 +1187,12 @@ include 'includes/header.php';
             
             <form id="create-schedule-form">
                 <div class="form-group">
-                    <label>Staff Member</label>
+                    <label>Staff Member or Worker</label>
                     <select id="schedule-user" required>
-                        <option value="">Select staff member...</option>
+                        <option value="">Select staff member or worker...</option>
                     </select>
                     <small style="color: #666; font-size: 12px; margin-top: 5px; display: block;">
-                        <i class="fas fa-info-circle"></i> Only branch staff members are shown (excludes super admin users)
+                        <i class="fas fa-info-circle"></i> Shows branch staff members and workers (excludes super admin users)
                     </small>
                 </div>
                 
@@ -734,7 +1248,7 @@ include 'includes/header.php';
             document.getElementById('schedule-date').value = new Date().toISOString().split('T')[0];
         });
 
-        // Load branch users
+        // Load branch users and workers
         function loadBranchUsers() {
             fetch('shift_schedule.php', {
                 method: 'POST',
@@ -748,13 +1262,39 @@ include 'includes/header.php';
                 if (data.success) {
                     branchUsers = data.users;
                     const select = document.getElementById('schedule-user');
-                    select.innerHTML = '<option value="">Select staff member...</option>';
-                    data.users.forEach(user => {
-                        const option = document.createElement('option');
-                        option.value = user.id;
-                        option.textContent = `${user.name} (${user.role})`;
-                        select.appendChild(option);
-                    });
+                    select.innerHTML = '<option value="">Select staff member or worker...</option>';
+                    
+                    // Group by type
+                    const users = data.users.filter(person => person.type === 'user');
+                    const workers = data.users.filter(person => person.type === 'worker');
+                    
+                    // Add users section
+                    if (users.length > 0) {
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = 'Staff Members';
+                        users.forEach(user => {
+                            const option = document.createElement('option');
+                            option.value = user.id;
+                            option.textContent = user.name;
+                            option.dataset.type = 'user';
+                            optgroup.appendChild(option);
+                        });
+                        select.appendChild(optgroup);
+                    }
+                    
+                    // Add workers section
+                    if (workers.length > 0) {
+                        const optgroup = document.createElement('optgroup');
+                        optgroup.label = 'Workers';
+                        workers.forEach(worker => {
+                            const option = document.createElement('option');
+                            option.value = worker.id;
+                            option.textContent = worker.name;
+                            option.dataset.type = 'worker';
+                            optgroup.appendChild(option);
+                        });
+                        select.appendChild(optgroup);
+                    }
                 }
             })
             .catch(error => {
@@ -831,10 +1371,15 @@ include 'includes/header.php';
                     `;
                 }
                 
+                // Show branch name for super admin
+                const staffInfo = schedule.branch_name ? 
+                    `${schedule.user_name} (${schedule.branch_name})` : 
+                    schedule.user_name;
+                
                 html += `
                     <tr>
                         <td>${new Date(schedule.shift_date).toLocaleDateString()}</td>
-                        <td>${schedule.user_name}</td>
+                        <td>${staffInfo}</td>
                         <td>${schedule.start_time}</td>
                         <td>${schedule.end_time}</td>
                         <td>${schedule.shift_type.replace('_', ' ').toUpperCase()}</td>
@@ -866,6 +1411,93 @@ include 'includes/header.php';
         function showCreateScheduleModal() {
             document.getElementById('create-schedule-modal').style.display = 'block';
         }
+        
+        // Show import excel modal
+        function showImportModal() {
+            document.getElementById('import-excel-modal').style.display = 'block';
+        }
+        
+        // Download template
+        function downloadTemplate() {
+            window.open('shift_schedule.php?action=download_template', '_blank');
+        }
+        
+        // Show manage workers modal
+        function showManageWorkersModal() {
+            document.getElementById('manage-workers-modal').style.display = 'block';
+            loadWorkers();
+        }
+        
+        // Show add worker modal
+        function showAddWorkerModal() {
+            document.getElementById('add-worker-modal').style.display = 'block';
+        }
+        
+        // Load workers
+        function loadWorkers() {
+            fetch('shift_schedule.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'action=get_branch_workers'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayWorkers(data.workers);
+                } else {
+                    document.getElementById('workers-container').innerHTML = 
+                        '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading workers: ' + data.message + '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading workers:', error);
+                document.getElementById('workers-container').innerHTML = 
+                    '<div style="text-align: center; color: #ef4444; padding: 20px;">Error loading workers. Please try again.</div>';
+            });
+        }
+        
+        // Display workers
+        function displayWorkers(workers) {
+            const container = document.getElementById('workers-container');
+            
+            if (workers.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #666; padding: 40px;">No workers found</p>';
+                return;
+            }
+
+            let html = `
+                <table class="schedule-table">
+                    <thead>
+                        <tr>
+                            <th>Worker ID</th>
+                            <th>Name</th>
+                            <th>Position</th>
+                            <th>Phone</th>
+                            <th>Fingerprint ID</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            workers.forEach(worker => {
+                html += `
+                    <tr>
+                        <td><strong>${worker.worker_id}</strong></td>
+                        <td>${worker.name}</td>
+                        <td>${worker.position}</td>
+                        <td>${worker.phone || 'N/A'}</td>
+                        <td>${worker.fingerprint_id || 'N/A'}</td>
+                        <td><span class="status-badge status-scheduled">Active</span></td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
 
         // Create schedule
         document.getElementById('create-schedule-form').addEventListener('submit', function(e) {
@@ -878,12 +1510,16 @@ include 'includes/header.php';
             const shiftType = document.getElementById('schedule-type').value;
             const notes = document.getElementById('schedule-notes').value;
             
+            // Determine if selected person is a worker
+            const selectedOption = document.getElementById('schedule-user').selectedOptions[0];
+            const isWorker = selectedOption && selectedOption.dataset.type === 'worker' ? 1 : 0;
+            
             fetch('shift_schedule.php', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `action=create_schedule&user_id=${userId}&shift_date=${shiftDate}&start_time=${startTime}&end_time=${endTime}&shift_type=${shiftType}&notes=${encodeURIComponent(notes)}`
+                body: `action=create_schedule&user_id=${userId}&shift_date=${shiftDate}&start_time=${startTime}&end_time=${endTime}&shift_type=${shiftType}&notes=${encodeURIComponent(notes)}&is_worker=${isWorker}`
             })
             .then(response => response.json())
             .then(data => {
@@ -958,6 +1594,98 @@ include 'includes/header.php';
             }
         }
 
+        // Excel import form
+        document.getElementById('import-excel-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('excel-file');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                showNotification('Please select an Excel file', 'error');
+                return;
+            }
+            
+            // Validate file size (10MB max)
+            if (file.size > 10 * 1024 * 1024) {
+                showNotification('File size must be less than 10MB', 'error');
+                return;
+            }
+            
+            // Validate file type
+            const fileType = file.name.split('.').pop().toLowerCase();
+            if (fileType !== 'xlsx' && fileType !== 'xls' && fileType !== 'csv') {
+                showNotification('Please select a valid Excel or CSV file (.xlsx, .xls, or .csv)', 'error');
+                return;
+            }
+            
+            // Show progress
+            document.getElementById('import-progress').style.display = 'block';
+            
+            // Prepare form data
+            const formData = new FormData();
+            formData.append('action', 'import_excel');
+            formData.append('excel_file', file);
+            
+            // Submit form
+            fetch('shift_schedule.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('import-progress').style.display = 'none';
+                
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    closeModal('import-excel-modal');
+                    document.getElementById('import-excel-form').reset();
+                    loadSchedules();
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                document.getElementById('import-progress').style.display = 'none';
+                console.error('Error importing Excel:', error);
+                showNotification('Error importing Excel file', 'error');
+            });
+        });
+        
+        // Add worker form
+        document.getElementById('add-worker-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const workerId = document.getElementById('worker-id').value;
+            const name = document.getElementById('worker-name').value;
+            const position = document.getElementById('worker-position').value;
+            const phone = document.getElementById('worker-phone').value;
+            const fingerprintId = document.getElementById('worker-fingerprint').value;
+            
+            fetch('shift_schedule.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `action=add_worker&worker_id=${encodeURIComponent(workerId)}&name=${encodeURIComponent(name)}&position=${encodeURIComponent(position)}&phone=${encodeURIComponent(phone)}&fingerprint_id=${encodeURIComponent(fingerprintId)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showNotification('Worker added successfully', 'success');
+                    closeModal('add-worker-modal');
+                    document.getElementById('add-worker-form').reset();
+                    loadWorkers(); // Refresh workers list
+                } else {
+                    showNotification(data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error adding worker:', error);
+                showNotification('Error adding worker', 'error');
+            });
+        });
+        
         // Date filter form
         document.getElementById('date-filter-form').addEventListener('submit', function(e) {
             e.preventDefault();

@@ -13,6 +13,12 @@ $page_title = "Special Offers";
 $db = new Database();
 $pdo = $db->getConnection();
 
+// Get current user's branch
+$branch_id = $_SESSION['branch_id'] ?? null;
+if (!$branch_id) {
+    die('No branch assigned to your account. Please contact super admin.');
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -26,9 +32,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $end_date = $_POST['end_date'] ?: null;
                 $is_active = isset($_POST['is_active']) ? 1 : 0;
                 
-                $query = "INSERT INTO special_offers (name, description, discount_type, discount_value, start_date, end_date, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)";
+                $query = "INSERT INTO special_offers (name, description, discount_type, discount_value, start_date, end_date, is_active, branch_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
                 $stmt = $pdo->prepare($query);
-                $stmt->execute([$title, $description, $discount_type, $discount_value, $start_date, $end_date, $is_active]);
+                $stmt->execute([$title, $description, $discount_type, $discount_value, $start_date, $end_date, $is_active, $branch_id]);
                 
                 header('Location: manage_special_offers.php?success=1');
                 exit();
@@ -44,9 +50,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $end_date = $_POST['end_date'] ?: null;
                 $is_active = isset($_POST['is_active']) ? 1 : 0;
                 
-                $query = "UPDATE special_offers SET name = ?, description = ?, discount_type = ?, discount_value = ?, start_date = ?, end_date = ?, is_active = ? WHERE id = ?";
+                // Validate that offer belongs to this branch
+                $query = "SELECT id FROM special_offers WHERE id = ? AND branch_id = ?";
                 $stmt = $pdo->prepare($query);
-                $stmt->execute([$title, $description, $discount_type, $discount_value, $start_date, $end_date, $is_active, $id]);
+                $stmt->execute([$id, $branch_id]);
+                if (!$stmt->fetch()) {
+                    header('Location: manage_special_offers.php?error=Offer not found or not in your branch');
+                    exit();
+                }
+                
+                $query = "UPDATE special_offers SET name = ?, description = ?, discount_type = ?, discount_value = ?, start_date = ?, end_date = ?, is_active = ? WHERE id = ? AND branch_id = ?";
+                $stmt = $pdo->prepare($query);
+                $stmt->execute([$title, $description, $discount_type, $discount_value, $start_date, $end_date, $is_active, $id, $branch_id]);
                 
                 header('Location: manage_special_offers.php?success=2');
                 exit();
@@ -55,17 +70,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'delete':
                 $id = $_POST['id'];
                 
-                // First check if the offer exists
-                $checkQuery = "SELECT * FROM special_offers WHERE id = ?";
+                // First check if the offer exists and belongs to this branch
+                $checkQuery = "SELECT * FROM special_offers WHERE id = ? AND branch_id = ?";
                 $checkStmt = $pdo->prepare($checkQuery);
-                $checkStmt->execute([$id]);
+                $checkStmt->execute([$id, $branch_id]);
                 $offer = $checkStmt->fetch();
                 
                 if ($offer) {
                     // Try to delete
-                    $query = "DELETE FROM special_offers WHERE id = ?";
+                    $query = "DELETE FROM special_offers WHERE id = ? AND branch_id = ?";
                     $stmt = $pdo->prepare($query);
-                    $result = $stmt->execute([$id]);
+                    $result = $stmt->execute([$id, $branch_id]);
                     
                     if ($result) {
                         header('Location: manage_special_offers.php?success=3');
@@ -81,11 +96,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Fetch all special offers
-$query = "SELECT * FROM special_offers ORDER BY created_at DESC";
+// Fetch special offers for this branch only
+$query = "SELECT * FROM special_offers WHERE branch_id = ? ORDER BY created_at DESC";
 $stmt = $pdo->prepare($query);
-$stmt->execute();
+$stmt->execute([$branch_id]);
 $offers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Get branch name
+$query = "SELECT name FROM branches WHERE id = ?";
+$stmt = $pdo->prepare($query);
+$stmt->execute([$branch_id]);
+$branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
 
 // Fetch categories for product selection
 $query = "SELECT * FROM categories WHERE is_active = 1 ORDER BY name";
@@ -101,57 +122,47 @@ $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 include 'includes/header.php';
 ?>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body { 
-            overflow: auto !important; 
-            height: auto !important; 
-            min-height: 100vh; 
-            background: #f8fafc;
-        }
-        .admin-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
         .page-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e2e8f0;
         }
-        .page-header h1 {
-            margin: 0;
-            font-size: 32px;
-            font-weight: 700;
+        
+        .header-actions {
+            margin-left: auto;
         }
-        .page-header p {
-            margin: 10px 0 0 0;
-            opacity: 0.9;
-            font-size: 16px;
-        }
-        .btn-add {
-            background: #10b981;
-            color: white;
+        
+        .header-actions .btn {
+            padding: 12px 24px;
             border: none;
-            padding: 15px 30px;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
             font-weight: 600;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            font-size: 16px;
+            gap: 8px;
+            font-size: 14px;
             transition: all 0.3s ease;
+        }
+        
+        .header-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .header-actions .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
-        .btn-add:hover {
-            background: #059669;
-            transform: translateY(-2px);
+        
+        .header-actions .btn-primary:hover {
+            background: linear-gradient(135deg, #059669, #047857);
             box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
         }
         .stats-cards {
@@ -330,7 +341,7 @@ include 'includes/header.php';
             display: flex;
             gap: 12px;
         }
-        .btn-edit, .btn-delete {
+        .offer-actions .btn {
             padding: 12px 20px;
             border: none;
             border-radius: 8px;
@@ -345,22 +356,26 @@ include 'includes/header.php';
             flex: 1;
             justify-content: center;
         }
-        .btn-edit {
+        
+        .offer-actions .btn-edit {
             background: linear-gradient(135deg, #3b82f6, #2563eb);
             color: white;
             box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
         }
-        .btn-edit:hover {
+        
+        .offer-actions .btn-edit:hover {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
         }
-        .btn-delete {
+        
+        .offer-actions .btn-delete {
             background: linear-gradient(135deg, #ef4444, #dc2626);
             color: white;
             box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
         }
-        .btn-delete:hover {
+        
+        .offer-actions .btn-delete:hover {
             background: linear-gradient(135deg, #dc2626, #b91c1c);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
@@ -466,22 +481,45 @@ include 'includes/header.php';
             font-size: 16px;
             color: #374151;
         }
-        .btn-submit {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            border: none;
+        .form-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: flex-end;
+            margin-top: 30px;
+        }
+        
+        .form-actions .btn {
             padding: 15px 30px;
+            border: none;
             border-radius: 10px;
             cursor: pointer;
             font-weight: 600;
             font-size: 16px;
             transition: all 0.3s ease;
+        }
+        
+        .form-actions .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
             box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
         }
-        .btn-submit:hover {
+        
+        .form-actions .btn-primary:hover {
             background: linear-gradient(135deg, #059669, #047857);
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .form-actions .btn-secondary {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+            color: white;
+            box-shadow: 0 4px 15px rgba(107, 114, 128, 0.3);
+        }
+        
+        .form-actions .btn-secondary:hover {
+            background: linear-gradient(135deg, #4b5563, #374151);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(107, 114, 128, 0.4);
         }
         .success-message {
             background: linear-gradient(135deg, #d1fae5, #a7f3d0);
@@ -527,21 +565,72 @@ include 'includes/header.php';
             font-weight: 700;
             box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
         }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .header-actions {
+                margin-top: 15px;
+                margin-left: 0;
+            }
+            
+            .stats-cards {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+            }
+            
+            .offers-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .offer-actions {
+                flex-direction: column;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row-3 {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Dark mode adjustments */
+        .dark-mode .header-actions .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .dark-mode .form-actions .btn-primary {
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        .dark-mode .form-actions .btn-secondary {
+            background: linear-gradient(135deg, #6b7280, #4b5563);
+        }
     </style>
 </head>
 <body>
-    <div class="admin-container">
+    <div class="admin-section">
         <div class="page-header">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h1><i class="fas fa-gift"></i> Special Offers Management</h1>
-                    <p>Create and manage promotional offers to boost sales</p>
-                </div>
-                <div style="display: flex; gap: 15px; align-items: center;">
-                    <button class="btn-add" onclick="openAddModal()">
-                        <i class="fas fa-plus"></i> Create New Offer
-                    </button>
-                </div>
+            <div>
+                <h2><i class="fas fa-gift"></i> Special Offers Management</h2>
+                <p>Create and manage promotional offers to boost sales - Branch: <?php echo htmlspecialchars($branch_name); ?></p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="openAddModal()">
+                    <i class="fas fa-plus"></i> Create New Offer
+                </button>
             </div>
         </div>
 
@@ -615,7 +704,7 @@ include 'includes/header.php';
                 <i class="fas fa-gift"></i>
                 <h3>No Special Offers Found</h3>
                 <p>Create your first special offer to attract customers and boost sales!</p>
-                <button class="btn-add" onclick="openAddModal()">
+                <button class="btn btn-primary" onclick="openAddModal()">
                     <i class="fas fa-plus"></i> Create First Offer
                 </button>
             </div>
@@ -654,10 +743,10 @@ include 'includes/header.php';
                         </div>
                         
                         <div class="offer-actions">
-                            <button class="btn-edit" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($offer)); ?>)">
+                            <button class="btn btn-edit" onclick="openEditModal(<?php echo htmlspecialchars(json_encode($offer)); ?>)">
                                 <i class="fas fa-edit"></i> Edit Offer
                             </button>
-                            <button class="btn-delete" onclick="deleteOffer(<?php echo $offer['id']; ?>)">
+                            <button class="btn btn-delete" onclick="deleteOffer(<?php echo $offer['id']; ?>)">
                                 <i class="fas fa-trash"></i> Delete
                             </button>
                         </div>
@@ -665,6 +754,7 @@ include 'includes/header.php';
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
+    </div>
     </div>
 
     <!-- Add/Edit Modal -->
@@ -723,9 +813,9 @@ include 'includes/header.php';
                     </div>
                 </div>
                 
-                <div style="text-align: right; margin-top: 30px;">
-                    <button type="button" class="btn-submit" style="background: #6b7280; margin-right: 15px;" onclick="closeModal()">Cancel</button>
-                    <button type="submit" class="btn-submit">Save Offer</button>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Offer</button>
                 </div>
             </form>
         </div>

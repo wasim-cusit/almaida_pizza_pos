@@ -228,30 +228,7 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
 
 include 'includes/header.php';
 ?>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        body {
-            overflow: auto !important;
-            height: auto !important;
-            min-height: 100vh;
-            background: #f8fafc;
-        }
-        
-        .admin-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .admin-header {
-            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
         
         .stats-grid {
             display: grid;
@@ -301,28 +278,72 @@ include 'includes/header.php';
             border-bottom: 2px solid #f1f5f9;
         }
         
-        .btn-super {
-            padding: 12px 24px;
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .action-buttons .btn {
+            padding: 8px 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 6px;
             cursor: pointer;
             font-weight: 600;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .action-buttons .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+        }
+        
+        .action-buttons .btn-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+        
+        .action-buttons .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            color: white;
+        }
+        
+        .action-buttons .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #20bf55);
+            color: white;
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .form-actions .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
             transition: all 0.3s ease;
         }
         
-        .btn-primary { background: #20bf55; color: white; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-info { background: #17a2b8; color: white; }
+        .form-actions .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
         
-        .btn-super:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        .form-actions .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
         }
         
         .modal {
@@ -451,23 +472,68 @@ include 'includes/header.php';
         .notification-error { background: #ef4444; }
         .notification-warning { background: #f59e0b; }
         .notification-info { background: #3b82f6; }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .header-actions {
+                margin-top: 15px;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .action-buttons input[type="date"] {
+                margin-bottom: 10px;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 15px;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .form-actions .btn {
+                margin-bottom: 10px;
+            }
+        }
+        
+        /* Dark mode adjustments */
+        .dark-mode .action-buttons .btn-success {
+            background: linear-gradient(135deg, #28a745, #20c997);
+        }
+        
+        .dark-mode .action-buttons .btn-danger {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+        }
+        
+        .dark-mode .action-buttons .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #20bf55);
+        }
     </style>
 </head>
 <body>
-    <div class="admin-container">
-        <!-- Header -->
-        <div class="admin-header">
-            <h1><i class="fas fa-cash-register"></i> Revenue Reconciliation</h1>
-            <p>Cash drawer management and revenue tracking for <?php echo $branch_name; ?></p>
-            <div style="margin-top: 20px;">
-                <a href="index.php" class="btn-super btn-info">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
+    <div class="admin-section">
+        <div class="page-header">
+            <div>
+                <h2><i class="fas fa-cash-register"></i> Revenue Reconciliation</h2>
+                <p>Cash drawer management and revenue tracking for <?php echo htmlspecialchars($branch_name); ?></p>
             </div>
         </div>
 
-        <!-- Statistics -->
-        <div class="stats-grid">
+        <div class="admin-section">
+            <h3><i class="fas fa-chart-bar"></i> Today's Overview</h3>
+            <div class="stats-grid">
             <div class="stat-card">
                 <div class="stat-number" style="color: #20bf55;"><?php echo $stats['open_drawers']; ?></div>
                 <div class="stat-label">Open Drawers Today</div>
@@ -485,15 +551,20 @@ include 'includes/header.php';
                 <div class="stat-label">Your Drawer Status</div>
             </div>
         </div>
+        </div>
 
         <!-- Current Drawer Status -->
         <?php if ($current_drawer): ?>
         <div class="admin-section">
             <div class="section-header">
                 <h2><i class="fas fa-cash-register"></i> Your Cash Drawer</h2>
-                <button class="btn-super btn-danger" onclick="showCloseDrawerModal()">
-                    <i class="fas fa-lock"></i> Close Drawer
-                </button>
+                <div class="header-actions">
+                    <div class="action-buttons">
+                        <button class="btn btn-danger" onclick="showCloseDrawerModal()">
+                            <i class="fas fa-lock"></i> Close Drawer
+                        </button>
+                    </div>
+                </div>
             </div>
             <div class="drawer-status status-open">
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
@@ -516,9 +587,13 @@ include 'includes/header.php';
         <div class="admin-section">
             <div class="section-header">
                 <h2><i class="fas fa-cash-register"></i> Cash Drawer Management</h2>
-                <button class="btn-super btn-success" onclick="showOpenDrawerModal()">
-                    <i class="fas fa-unlock"></i> Open Drawer
-                </button>
+                <div class="header-actions">
+                    <div class="action-buttons">
+                        <button class="btn btn-success" onclick="showOpenDrawerModal()">
+                            <i class="fas fa-unlock"></i> Open Drawer
+                        </button>
+                    </div>
+                </div>
             </div>
             <p style="text-align: center; color: #666; padding: 20px;">
                 Your cash drawer is currently closed. Open it to start your shift.
@@ -530,12 +605,14 @@ include 'includes/header.php';
         <div class="admin-section">
             <div class="section-header">
                 <h2><i class="fas fa-chart-line"></i> Revenue Reconciliation</h2>
-                <div style="display: flex; gap: 10px;">
-                    <input type="date" id="start-date" value="<?php echo date('Y-m-d', strtotime('-7 days')); ?>">
-                    <input type="date" id="end-date" value="<?php echo date('Y-m-d'); ?>">
-                    <button class="btn-super btn-info" onclick="loadReconciliationData()">
-                        <i class="fas fa-refresh"></i> Load Data
-                    </button>
+                <div class="header-actions">
+                    <div class="action-buttons">
+                        <input type="date" id="start-date" value="<?php echo date('Y-m-d', strtotime('-7 days')); ?>" style="padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                        <input type="date" id="end-date" value="<?php echo date('Y-m-d'); ?>" style="padding: 8px; border: 1px solid #ddd; border-radius: 6px;">
+                        <button class="btn btn-info" onclick="loadReconciliationData()">
+                            <i class="fas fa-refresh"></i> Load Data
+                        </button>
+                    </div>
                 </div>
             </div>
             <div id="reconciliation-container">
@@ -544,6 +621,7 @@ include 'includes/header.php';
                 </p>
             </div>
         </div>
+    </div>
     </div>
 
     <!-- Open Drawer Modal -->
@@ -558,9 +636,9 @@ include 'includes/header.php';
                     <input type="number" id="opening-cash" step="0.01" min="0" required>
                 </div>
                 
-                <div style="text-align: right; margin-top: 20px;">
-                    <button type="button" class="btn-super btn-secondary" onclick="closeModal('open-drawer-modal')">Cancel</button>
-                    <button type="submit" class="btn-super btn-success">Open Drawer</button>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('open-drawer-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-success">Open Drawer</button>
                 </div>
             </form>
         </div>
@@ -583,9 +661,9 @@ include 'includes/header.php';
                     <textarea id="close-notes" rows="3" placeholder="Any notes about the closing..."></textarea>
                 </div>
                 
-                <div style="text-align: right; margin-top: 20px;">
-                    <button type="button" class="btn-super btn-secondary" onclick="closeModal('close-drawer-modal')">Cancel</button>
-                    <button type="submit" class="btn-super btn-danger">Close Drawer</button>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('close-drawer-modal')">Cancel</button>
+                    <button type="submit" class="btn btn-danger">Close Drawer</button>
                 </div>
             </form>
         </div>
@@ -743,10 +821,10 @@ include 'includes/header.php';
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                         <td>
                             ${reconciliation.status === 'pending' ? 
-                                `<button class="btn-super btn-success" onclick="reconcileRevenue(${reconciliation.id})">
+                                `<button class="btn btn-success" onclick="reconcileRevenue(${reconciliation.id})" style="padding: 6px 12px; font-size: 12px;">
                                     <i class="fas fa-check"></i> Reconcile
                                 </button>` : 
-                                `<span style="color: #666;">Reconciled by ${reconciliation.reconciled_by_name || 'Unknown'}</span>`
+                                `<span style="color: #666; font-size: 12px;">Reconciled by ${reconciliation.reconciled_by_name || 'Unknown'}</span>`
                             }
                         </td>
                     </tr>
@@ -846,4 +924,5 @@ include 'includes/header.php';
                 }
             }, 5000);
         }
+    </script>
 <?php include 'includes/footer.php'; ?>

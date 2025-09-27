@@ -10,6 +10,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
 
 $page_title = "Manage Categories";
 
+// Get current user's branch
+$branch_id = $_SESSION['branch_id'] ?? null;
+if (!$branch_id) {
+    die('No branch assigned to your account. Please contact super admin.');
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -64,15 +70,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get categories
-$query = "SELECT c.*, COUNT(i.id) as item_count 
+// Get categories with branch-specific item counts
+$query = "SELECT c.*, 
+          COUNT(DISTINCT i.id) as total_items,
+          COUNT(DISTINCT CASE WHEN bi.branch_id = ? THEN i.id END) as branch_items
           FROM categories c 
-          LEFT JOIN items i ON c.id = i.category_id 
+          LEFT JOIN items i ON c.id = i.category_id AND i.is_deleted = 0
+          LEFT JOIN branch_items bi ON i.id = bi.item_id
           GROUP BY c.id 
           ORDER BY c.display_order, c.name";
 $stmt = $db->prepare($query);
-$stmt->execute();
+$stmt->execute([$branch_id]);
 $categories = $stmt->fetchAll();
+
+// Get branch name
+$query = "SELECT name FROM branches WHERE id = ?";
+$stmt = $db->prepare($query);
+$stmt->execute([$branch_id]);
+$branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
 
 include 'includes/header.php';
 ?>
@@ -396,6 +411,20 @@ include 'includes/header.php';
         [data-theme="dark"] .form-actions {
             border-top-color: var(--border-color);
         }
+        
+        .branch-items-count {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #e0f2fe;
+            color: #0277bd;
+        }
+        
+        .dark-mode .branch-items-count {
+            background: #1e3a8a;
+            color: #93c5fd;
+        }
     </style>
 
     <!-- Page Header -->
@@ -403,7 +432,7 @@ include 'includes/header.php';
         <div class="page-header">
             <div>
                 <h2>🍕 Manage Categories</h2>
-                <p>Add, edit, and manage menu categories</p>
+                <p>Add, edit, and manage menu categories - Branch: <?php echo htmlspecialchars($branch_name); ?></p>
             </div>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="showAddModal()">
@@ -426,7 +455,8 @@ include 'includes/header.php';
                 <tr>
                     <th>Name</th>
                     <th>Display Order</th>
-                    <th>Items Count</th>
+                    <th>Total Items</th>
+                    <th>Branch Items</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
@@ -436,7 +466,12 @@ include 'includes/header.php';
                 <tr>
                     <td><?php echo htmlspecialchars($category['name']); ?></td>
                     <td><?php echo $category['display_order']; ?></td>
-                    <td><?php echo $category['item_count']; ?> items</td>
+                    <td><?php echo $category['total_items']; ?> items</td>
+                    <td>
+                        <span class="branch-items-count">
+                            <?php echo $category['branch_items']; ?> items
+                        </span>
+                    </td>
                     <td>
                         <span class="btn <?php echo $category['is_active'] ? 'btn-primary' : 'btn-secondary'; ?>" style="padding: 4px 8px; font-size: 12px;">
                             <?php echo $category['is_active'] ? 'Active' : 'Inactive'; ?>

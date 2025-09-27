@@ -102,12 +102,18 @@ try {
         $taxAmount = $subtotal * $taxRate;
         $totalAmount = $subtotal + $taxAmount;
         
+        // Get user's branch_id
+        $branchId = $_SESSION['branch_id'] ?? null;
+        if (!$branchId) {
+            throw new Exception('User not assigned to any branch');
+        }
+        
         // Create order record
         $query = "INSERT INTO orders (
             order_number, user_id, customer_id, order_type, 
             subtotal, tax_amount, total_amount, payment_method, payment_status, 
-            order_status, notes, table_number, created_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid', 'pending', ?, ?, NOW())";
+            order_status, notes, table_number, branch_id, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'paid', 'pending', ?, ?, ?, NOW())";
         
         $stmt = $db->prepare($query);
         $stmt->execute([
@@ -120,7 +126,8 @@ try {
             $totalAmount,
             $input['payment_method'],
             sanitize($input['notes'] ?? ''),
-            sanitize($input['table_number'] ?? '')
+            sanitize($input['table_number'] ?? ''),
+            $branchId
         ]);
         
         $orderId = $db->lastInsertId();

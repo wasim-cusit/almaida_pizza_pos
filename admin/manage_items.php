@@ -10,6 +10,12 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
 
 $page_title = "Manage Items";
 
+// Get current user's branch
+$branch_id = $_SESSION['branch_id'] ?? null;
+if (!$branch_id) {
+    die('No branch assigned to your account. Please contact super admin.');
+}
+
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['action'])) {
@@ -127,15 +133,24 @@ $stmt = $db->prepare($query);
 $stmt->execute();
 $categories = $stmt->fetchAll();
 
-// Get items with category names and size variants (excluding soft-deleted items)
-$query = "SELECT i.*, c.name as category_name 
+// Get items with category names, size variants, and branch-specific stock (excluding soft-deleted items)
+$query = "SELECT i.*, c.name as category_name, 
+          COALESCE(bi.current_stock, 0) as current_stock,
+          CASE WHEN bi.id IS NOT NULL THEN 1 ELSE 0 END as has_branch_stock
           FROM items i 
           JOIN categories c ON i.category_id = c.id 
+          LEFT JOIN branch_items bi ON i.id = bi.item_id AND bi.branch_id = ?
           WHERE i.is_deleted = 0
           ORDER BY c.name, i.name";
 $stmt = $db->prepare($query);
-$stmt->execute();
+$stmt->execute([$branch_id]);
 $items = $stmt->fetchAll();
+
+// Get branch name
+$query = "SELECT name FROM branches WHERE id = ?";
+$stmt = $db->prepare($query);
+$stmt->execute([$branch_id]);
+$branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
 
 // Get size variants for each item
 $item_size_variants = [];
@@ -683,6 +698,33 @@ include 'includes/header.php';
         [data-theme="dark"] .notification-popup p {
             color: var(--text-secondary);
         }
+        
+        .stock-display {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .stock-display.in-stock {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .stock-display.out-of-stock {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .dark-mode .stock-display.in-stock {
+            background: #064e3b;
+            color: #a7f3d0;
+        }
+        
+        .dark-mode .stock-display.out-of-stock {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
     </style>
 
     <!-- Page Header -->
@@ -690,7 +732,7 @@ include 'includes/header.php';
         <div class="page-header">
             <div>
                 <h2>🍕 Manage Menu Items</h2>
-                <p>Add, edit, and manage menu items with size variants</p>
+                <p>Add, edit, and manage menu items with size variants - Branch: <?php echo htmlspecialchars($branch_name); ?></p>
             </div>
             <div class="header-actions">
                 <button class="btn btn-primary" onclick="showAddModal()">
@@ -718,6 +760,7 @@ include 'includes/header.php';
                     <th>Category</th>
                     <th>Price</th>
                     <th>Size Variants</th>
+                    <th>Stock</th>
                     <th>Description</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -747,6 +790,11 @@ include 'includes/header.php';
                         <?php else: ?>
                             <span style="color: #999;">No variants</span>
                         <?php endif; ?>
+                    </td>
+                    <td>
+                        <span class="stock-display <?php echo $item['current_stock'] > 0 ? 'in-stock' : 'out-of-stock'; ?>">
+                            <?php echo $item['current_stock']; ?> units
+                        </span>
                     </td>
                     <td><?php echo htmlspecialchars($item['description'] ?? ''); ?></td>
                     <td>

@@ -77,17 +77,24 @@ try {
             $customerId = $db->lastInsertId();
         }
         
+        // Get user's branch_id
+        $branchId = $_SESSION['branch_id'] ?? null;
+        if (!$branchId) {
+            throw new Exception('User not assigned to any branch');
+        }
+        
         // Insert order
         $orderQuery = "INSERT INTO orders (
-            order_number, user_id, customer_id, order_type, table_number,
+            order_number, user_id, customer_id, branch_id, order_type, table_number,
             subtotal, tax_amount, total_amount, payment_method, notes, order_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')";
         
         $orderStmt = $db->prepare($orderQuery);
         $orderStmt->execute([
             $orderNumber,
             $_SESSION['user_id'],
             $customerId,
+            $branchId,
             $orderType,
             $tableNumber,
             $subtotal,

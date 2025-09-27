@@ -5,6 +5,12 @@ require_once 'config/database.php';
 // Check if user is logged in
 requireLogin();
 
+// Check if user has branch assigned
+if (!isset($_SESSION['branch_id']) || !$_SESSION['branch_id']) {
+    header('Location: login.php?error=no_branch_assigned');
+    exit();
+}
+
 // Get current order number
 $orderNumber = generateOrderNumber();
 

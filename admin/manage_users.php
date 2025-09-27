@@ -137,6 +137,30 @@ include 'includes/header.php';
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    <meta name="cache-control" content="max-age=0">
+    <meta name="expires" content="0">
+    <meta name="expires" content="Tue, 01 Jan 1980 1:00:00 GMT">
+    <meta name="pragma" content="no-cache">
+    
+    <!-- Simple URL parameter cleanup -->
+    <script>
+        // Simple URL cleanup - no auto-refresh
+        (function() {
+            'use strict';
+            
+            const urlParams = new URLSearchParams(window.location.search);
+            const success = urlParams.get('success');
+            const error = urlParams.get('error');
+            
+            // Only clear URL if we have success/error messages
+            if (success || error) {
+                console.log('Found success/error message, clearing URL');
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+            
+        })();
+    </script>
+    
     <style>
         
         .users-table {
@@ -684,21 +708,15 @@ include 'includes/header.php';
         </div>
     </div>
     
-    <!-- Cache busting handled by script ID -->
+    <!-- Page loaded successfully -->
     
-    <script id="manage-users-<?php echo time(); ?>">
-        // Version: 2.0 - Cache busting enabled
+    <script id="manage-users-<?php echo time(); ?>" data-version="3.0">
+        // Version: 3.0 - Cache busting enabled
         // Script ID: <?php echo time(); ?>
+        // Force fresh load
+        console.log('Script version 3.0 loaded at:', new Date().toISOString());
         
-        // Clear any cached data and force fresh load
-        if (typeof(Storage) !== "undefined") {
-            try {
-                localStorage.removeItem('manage_users_cache');
-                sessionStorage.removeItem('manage_users_cache');
-            } catch (e) {
-                console.log('Cache clear completed');
-            }
-        }
+        // Page loaded successfully
         
         // Test if JavaScript is working properly
         try {
@@ -707,22 +725,36 @@ include 'includes/header.php';
             console.error('JavaScript error on load:', e);
         }
         
-        // Clear URL parameters and show popup notifications (top-right)
+        // Simple error handler for logging only
+        window.addEventListener('error', function(e) {
+            console.error('JavaScript error detected:', e);
+        });
+        
+        // Simple handler for unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('Unhandled promise rejection:', e);
+        });
+        
+        // Show notifications and clear URL parameters
         window.addEventListener('load', function() {
             const urlParams = new URLSearchParams(window.location.search);
             const success = urlParams.get('success');
             const error = urlParams.get('error');
             
+            // Show notifications if we have success/error messages
             if (success) {
                 showNotificationPopup(success, 'success');
-                // Clear URL parameters
-                window.history.replaceState({}, document.title, window.location.pathname);
             }
             
             if (error) {
                 showNotificationPopup(error, 'error');
-                // Clear URL parameters
-                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+            
+            // Clear URL parameters after showing notifications
+            if (success || error) {
+                setTimeout(() => {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }, 100);
             }
         });
         

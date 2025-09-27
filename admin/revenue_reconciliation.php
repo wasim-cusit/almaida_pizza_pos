@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
     exit();
 }
 
+$page_title = "Revenue Reconciliation";
+
 // Get current user's branch
 $branch_id = $_SESSION['branch_id'] ?? null;
 if (!$branch_id) {
@@ -223,14 +225,9 @@ $query = "SELECT name FROM branches WHERE id = ?";
 $stmt = $db->prepare($query);
 $stmt->execute([$branch_id]);
 $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Revenue Reconciliation - <?php echo $branch_name; ?></title>
+include 'includes/header.php';
+?>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -849,6 +846,4 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
                 }
             }, 5000);
         }
-    </script>
-</body>
-</html>
+<?php include 'includes/footer.php'; ?>

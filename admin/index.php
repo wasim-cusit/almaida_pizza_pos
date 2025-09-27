@@ -71,38 +71,11 @@ $query .= " ORDER BY o.created_at DESC LIMIT 10";
 $stmt = $db->prepare($query);
 $stmt->execute($params);
 $recentOrders = $stmt->fetchAll();
+$page_title = "Dashboard";
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>Admin Dashboard - Fast Food POS</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Override main CSS for admin pages to enable scrolling */
-        body {
-            overflow: auto !important;
-            height: auto !important;
-            min-height: 100vh;
-        }
-        
-        .admin-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
-        
+        /* Dashboard Content Styles */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -111,11 +84,13 @@ $recentOrders = $stmt->fetchAll();
         }
         
         .stat-card {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
         }
         
         .stat-card h3 {
@@ -140,14 +115,6 @@ $recentOrders = $stmt->fetchAll();
         .change.positive { color: #20bf55; }
         .change.negative { color: #dc3545; }
         
-        .recent-orders {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-        
         .orders-table {
             width: 100%;
             border-collapse: collapse;
@@ -171,65 +138,6 @@ $recentOrders = $stmt->fetchAll();
             background: #f8f9fa;
         }
         
-        .quick-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .action-card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center;
-            text-decoration: none;
-            color: #333;
-            transition: transform 0.3s ease;
-        }
-        
-        .action-card:hover {
-            transform: translateY(-5px);
-            color: #333;
-        }
-        
-        .action-card i {
-            font-size: 48px;
-            color: #20bf55;
-            margin-bottom: 15px;
-        }
-        
-        .action-card h3 {
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        
-        .action-card p {
-            color: #666;
-            font-size: 14px;
-        }
-        
-        .btn-admin {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-            margin: 5px;
-        }
-        
-        .btn-primary { background: #20bf55; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        
-        .btn-admin:hover {
-            opacity: 0.9;
-        }
-        
         .order-status {
             padding: 4px 8px;
             border-radius: 12px;
@@ -243,47 +151,75 @@ $recentOrders = $stmt->fetchAll();
         .status-completed { background: #c3e6cb; color: #155724; }
         .status-cancelled { background: #f5c6cb; color: #721c24; }
         
-        .admin-section {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .orders-table {
+                font-size: 0.85em;
+            }
+            
+            .orders-table th,
+            .orders-table td {
+                padding: 8px;
+            }
         }
         
-        .admin-section h2 {
-            color: #333;
-            margin-bottom: 20px;
-            font-size: 1.5em;
+        @media (max-width: 480px) {
+            .stat-card {
+                padding: 20px;
+            }
+            
+            .stat-card .stat-number {
+                font-size: 28px;
+            }
         }
         
-        .admin-actions {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+        /* Dark Mode Adjustments */
+        [data-theme="dark"] .stat-card {
+            background: rgba(45, 45, 45, 0.95);
+            border: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] .stat-card h3 {
+            color: var(--text-secondary);
+        }
+        
+        [data-theme="dark"] .stat-card .stat-number {
+            color: #27ae60;
+        }
+        
+        [data-theme="dark"] .stat-card .stat-label {
+            color: var(--text-secondary);
+        }
+        
+        [data-theme="dark"] .orders-table {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] .orders-table th {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] .orders-table td {
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] .orders-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        [data-theme="dark"] .order-status {
+            color: var(--text-primary);
         }
     </style>
-</head>
-<body>
-    <div class="admin-container">
-        <div class="admin-header">
-            <div>
-                <h1>🍕 Fast Food POS - Admin Dashboard</h1>
-                <?php if (isset($_SESSION['branch_name']) && $_SESSION['branch_name']): ?>
-                    <h2 style="color: #20bf55; margin: 5px 0; font-size: 1.2em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
-                <?php endif; ?>
-                <p>Welcome, <?php echo htmlspecialchars($_SESSION['user_name']); ?></p>
-            </div>
-            <div>
-                <a href="../index.php" class="btn-admin btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to POS
-                </a>
-                <a href="../logout.php" class="btn-admin btn-danger">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
-            </div>
-        </div>
-        
         <!-- Statistics -->
         <div class="stats-grid">
             <div class="stat-card">
@@ -317,46 +253,6 @@ $recentOrders = $stmt->fetchAll();
             <div class="stat-card">
                 <div class="stat-number"><?php echo count($recentOrders); ?></div>
                 <div class="stat-label">Recent Orders</div>
-            </div>
-        </div>
-        
-              <!-- Quick Actions -->
-        <div class="admin-section">
-            <h2><i class="fas fa-cogs"></i> Quick Actions</h2>
-            <div class="admin-actions">
-                <a href="view_orders.php" class="btn-admin btn-primary">
-                    <i class="fas fa-receipt"></i> View Orders
-                </a>
-                <a href="kitchen_display.php" class="btn-admin btn-primary">
-                    <i class="fas fa-utensils"></i> Kitchen Display
-                </a>
-                <a href="manage_items.php" class="btn-admin btn-primary">
-                    <i class="fas fa-utensils"></i> Manage Items
-                </a>
-                <a href="manage_categories.php" class="btn-admin btn-primary">
-                    <i class="fas fa-tags"></i> Manage Categories
-                </a>
-                <a href="manage_users.php" class="btn-admin btn-primary">
-                    <i class="fas fa-users"></i> Manage Users
-                </a>
-                <a href="reports.php" class="btn-admin btn-secondary">
-                    <i class="fas fa-chart-bar"></i> Reports
-                </a>
-                <a href="settings.php" class="btn-admin btn-secondary">
-                    <i class="fas fa-cog"></i> Settings
-                </a>
-                <a href="manage_special_offers.php" class="btn-admin btn-primary">
-                    <i class="fas fa-gift"></i> Special Offers
-                </a>
-                <a href="received_stock.php" class="btn-admin btn-success">
-                    <i class="fas fa-truck-loading"></i> Received Stock
-                </a>
-                <a href="revenue_reconciliation.php" class="btn-admin btn-primary">
-                    <i class="fas fa-cash-register"></i> Revenue Reconciliation
-                </a>
-                <a href="shift_schedule.php" class="btn-admin btn-warning">
-                    <i class="fas fa-calendar-alt"></i> Shift Schedule
-                </a>
             </div>
         </div>
         
@@ -474,16 +370,6 @@ $recentOrders = $stmt->fetchAll();
                     </tbody>
                 </table>
             <?php endif; ?>
-        </div>
-        
-  
     </div>
     
-    <script>
-        // Auto-refresh dashboard every 30 seconds
-        setTimeout(function() {
-            location.reload();
-        }, 30000);
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
     exit();
 }
 
+$page_title = "Special Offers";
+
 $db = new Database();
 $pdo = $db->getConnection();
 
@@ -96,14 +98,9 @@ $query = "SELECT i.*, c.name as category_name FROM items i LEFT JOIN categories 
 $stmt = $pdo->prepare($query);
 $stmt->execute();
 $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Special Offers - Admin Panel</title>
+include 'includes/header.php';
+?>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -813,6 +810,4 @@ $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 closeModal();
             }
         }
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

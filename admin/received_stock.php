@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
     exit();
 }
 
+$page_title = "Received Stock";
+
 // Get current user's branch
 $branch_id = $_SESSION['branch_id'] ?? null;
 if (!$branch_id) {
@@ -203,38 +205,10 @@ $query = "SELECT name FROM branches WHERE id = ?";
 $stmt = $db->prepare($query);
 $stmt->execute([$branch_id]);
 $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Received Stock - <?php echo $branch_name; ?></title>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+include 'includes/header.php';
+?>
     <style>
-        body {
-            overflow: auto !important;
-            height: auto !important;
-            min-height: 100vh;
-            background: #f8fafc;
-        }
-        
-        .admin-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .admin-header {
-            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-        }
         
         .stats-grid {
             display: grid;
@@ -284,28 +258,45 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
             border-bottom: 2px solid #f1f5f9;
         }
         
-        .btn-super {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
+        .action-buttons {
+            display: flex;
             gap: 8px;
-            transition: all 0.3s ease;
+            align-items: center;
         }
         
-        .btn-primary { background: #20bf55; color: white; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-info { background: #17a2b8; color: white; }
+        .action-buttons .btn {
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
+        }
         
-        .btn-super:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        .action-buttons .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        
+        .action-buttons .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            color: white;
+        }
+        
+        .action-buttons .btn-info:hover {
+            background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+        }
+        
+        .action-buttons .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+        
+        .action-buttons .btn-success:hover {
+            background: linear-gradient(135deg, #20c997 0%, #1ea085 100%);
         }
         
         .distribution-table {
@@ -435,18 +426,92 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
         .notification-error { background: #ef4444; }
         .notification-warning { background: #f59e0b; }
         .notification-info { background: #3b82f6; }
+        
+        /* Page Header Styles */
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .page-header h2,
+        .page-header p {
+            margin: 0;
+        }
+        
+        .page-header > div:first-child {
+            flex: 1;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-left: auto;
+        }
+        
+        .header-actions .btn {
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .header-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .header-actions .btn-primary {
+            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
+            color: white;
+        }
+        
+        .header-actions .btn-primary:hover {
+            background: linear-gradient(135deg, #1aa049 0%, #0193d1 100%);
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+            
+            .header-actions {
+                margin-left: 0;
+                justify-content: center;
+            }
+            
+            .header-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
     </style>
-</head>
-<body>
-    <div class="admin-container">
-        <!-- Header -->
-        <div class="admin-header">
-            <h1><i class="fas fa-truck-loading"></i> Received Stock Management</h1>
-            <p>Manage stock distributions for <?php echo $branch_name; ?></p>
-            <div style="margin-top: 20px;">
-                <a href="index.php" class="btn-super btn-info">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
+
+    <!-- Page Header -->
+    <div class="admin-section">
+        <div class="page-header">
+            <div>
+                <h2><i class="fas fa-truck-loading"></i> Received Stock Management</h2>
+                <p>Manage stock distributions for <?php echo htmlspecialchars($branch_name); ?></p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="loadDistributions()">
+                    <i class="fas fa-refresh"></i> Refresh
+                </button>
             </div>
         </div>
 
@@ -470,15 +535,10 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
             </div>
         </div>
 
-        <!-- Main Content -->
+        <!-- Stock Distributions -->
         <div class="admin-section">
-            <div class="section-header">
-                <h2><i class="fas fa-list"></i> Stock Distributions</h2>
-                <button class="btn-super btn-primary" onclick="loadDistributions()">
-                    <i class="fas fa-refresh"></i> Refresh
-                </button>
-            </div>
-
+            <h3><i class="fas fa-list"></i> Stock Distributions</h3>
+            
             <div id="distributions-container">
                 <p style="text-align: center; color: #666; padding: 40px;">
                     Loading distributions...
@@ -503,8 +563,8 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
             </div>
             
             <div id="receive-actions" style="text-align: right; margin-top: 20px; display: none;">
-                <button type="button" class="btn-super btn-secondary" onclick="closeModal('distribution-details-modal')">Close</button>
-                <button type="button" class="btn-super btn-success" onclick="receiveGoods()">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('distribution-details-modal')">Close</button>
+                <button type="button" class="btn btn-success" onclick="receiveGoods()">
                     <i class="fas fa-check"></i> Mark as Received
                 </button>
             </div>
@@ -512,6 +572,8 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
     </div>
 
     <script>
+        // Cache busting timestamp: <?php echo time(); ?>
+        
         let currentDistributionId = null;
 
         // Initialize the page
@@ -581,14 +643,16 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
                         <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                         <td>${distribution.requested_by_name}</td>
                         <td>
-                            <button class="btn-super btn-info" onclick="viewDistribution(${distribution.id})">
-                                <i class="fas fa-eye"></i> View Details
-                            </button>
-                            ${distribution.status === 'approved' || distribution.status === 'dispatched' ? 
-                                `<button class="btn-super btn-success" onclick="quickReceive(${distribution.id})">
-                                    <i class="fas fa-check"></i> Receive
-                                </button>` : ''
-                            }
+                            <div class="action-buttons">
+                                <button class="btn btn-info" onclick="viewDistribution(${distribution.id})" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                ${distribution.status === 'approved' || distribution.status === 'dispatched' ? 
+                                    `<button class="btn btn-success" onclick="quickReceive(${distribution.id})" title="Receive">
+                                        <i class="fas fa-check"></i>
+                                    </button>` : ''
+                                }
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -803,5 +867,5 @@ $branch_name = $stmt->fetch()['name'] ?? 'Unknown Branch';
             }, 5000);
         }
     </script>
-</body>
-</html>
+
+<?php include 'includes/footer.php'; ?>

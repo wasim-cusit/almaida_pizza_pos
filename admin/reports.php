@@ -3,7 +3,12 @@ session_start();
 require_once '../config/database.php';
 
 // Check if user is logged in and is admin
-requireAdmin();
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
+    header('Location: ../login.php');
+    exit;
+}
+
+$page_title = "Reports";
 
 // Get date range from request
 $start_date = $_GET['start_date'] ?? date('Y-m-d', strtotime('-30 days'));
@@ -83,15 +88,9 @@ $query .= " GROUP BY c.id, c.name ORDER BY category_revenue DESC";
 $stmt = $db->prepare($query);
 $stmt->execute($params);
 $category_performance = $stmt->fetchAll();
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>Reports - Fast Food POS</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         /* Override main CSS for admin pages to enable scrolling */
@@ -229,11 +228,6 @@ $category_performance = $stmt->fetchAll();
                     <h2 style="color: #20bf55; margin: 5px 0; font-size: 1.2em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
                 <?php endif; ?>
                 <p>Analytics and performance insights</p>
-            </div>
-            <div>
-                <a href="index.php" class="btn-admin btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
             </div>
         </div>
         
@@ -452,6 +446,4 @@ $category_performance = $stmt->fetchAll();
             a.click();
             window.URL.revokeObjectURL(url);
         }
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

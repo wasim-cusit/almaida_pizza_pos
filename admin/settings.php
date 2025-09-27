@@ -3,7 +3,12 @@ session_start();
 require_once '../config/database.php';
 
 // Check if user is logged in and is admin
-requireAdmin();
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
+    header('Location: ../login.php');
+    exit;
+}
+
+$page_title = "Settings";
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -65,13 +70,9 @@ foreach ($defaults as $key => $default) {
         $settings[$key] = $default;
     }
 }
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Settings - Fast Food POS</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -391,6 +392,4 @@ foreach ($defaults as $key => $default) {
         form.addEventListener('submit', function() {
             localStorage.removeItem('pos_settings_form');
         });
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

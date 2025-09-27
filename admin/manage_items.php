@@ -3,7 +3,12 @@ session_start();
 require_once '../config/database.php';
 
 // Check if user is logged in and is admin
-requireAdmin();
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
+    header('Location: ../login.php');
+    exit;
+}
+
+$page_title = "Manage Items";
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -92,47 +97,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             case 'delete':
-                $id = (int)$_POST['id'];
-                
-                try {
-                    $db->beginTransaction();
-                    
-                    // Check if item is used in any orders
-                    $query = "SELECT COUNT(*) as count FROM order_items WHERE item_id = ?";
-                    $stmt = $db->prepare($query);
-                    $stmt->execute([$id]);
-                    $orderCount = $stmt->fetch()['count'];
-                    
-                    if ($orderCount > 0) {
-                        // Item is used in orders, perform soft delete
-                        $query = "UPDATE items SET is_deleted = 1, is_available = 0 WHERE id = ?";
-                        $stmt = $db->prepare($query);
-                        $stmt->execute([$id]);
-                        
-                        $db->commit();
-                        header('Location: manage_items.php?success=Item soft deleted (used in ' . $orderCount . ' orders)');
-                        exit();
-                    } else {
-                        // Item is not used in orders, perform hard delete
-                        // Delete size variants first
-                        $query = "DELETE FROM item_size_variants WHERE item_id = ?";
-                        $stmt = $db->prepare($query);
-                        $stmt->execute([$id]);
-                        
-                        // Delete the item
-                        $query = "DELETE FROM items WHERE id = ?";
-                        $stmt = $db->prepare($query);
-                        $stmt->execute([$id]);
-                        
-                        $db->commit();
-                        header('Location: manage_items.php?success=Item deleted successfully');
-                        exit();
-                    }
-                } catch (Exception $e) {
-                    $db->rollBack();
-                    header('Location: manage_items.php?error=Error deleting item: ' . $e->getMessage());
-                    exit();
-                }
+                // Delete functionality is now handled via AJAX in delete_item.php
+                header('Location: manage_items.php?error=Please use the delete button in the interface');
+                exit();
                 break;
                 
             case 'restore':
@@ -178,37 +145,12 @@ foreach ($items as $item) {
     $stmt->execute([$item['id']]);
     $item_size_variants[$item['id']] = $stmt->fetchAll();
 }
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Items - Fast Food POS</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Override main CSS for admin pages to enable scrolling */
-        body {
-            overflow: auto !important;
-            height: auto !important;
-            min-height: 100vh;
-        }
+        /* Manage Items Page Specific Styles */
         
-        .admin-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
         
         .items-table {
             width: 100%;
@@ -239,47 +181,107 @@ foreach ($items as $item) {
         .action-buttons {
             display: flex;
             gap: 8px;
+            align-items: center;
         }
         
-        .btn-admin {
-            padding: 8px 16px;
-            border: none;
+        .action-buttons .btn {
+            padding: 8px 12px;
             border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-            font-size: 14px;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
         }
         
-        .btn-primary { background: #20bf55; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        .btn-info { background: #17a2b8; color: white; }
-        
-        .btn-admin:hover {
-            opacity: 0.9;
+        .action-buttons .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         
-        .add-item-btn {
-            background: #20bf55;
+        .action-buttons .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #212529;
+        }
+        
+        .action-buttons .btn-warning:hover {
+            background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
+        }
+        
+        .action-buttons .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
             color: white;
-            padding: 12px 24px;
-            border: none;
+        }
+        
+        .action-buttons .btn-danger:hover {
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+        }
+        
+        /* Enhanced Button Styles */
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-left: auto;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .page-header h2,
+        .page-header p {
+            margin: 0;
+        }
+        
+        .page-header > div:first-child {
+            flex: 1;
+        }
+        
+        .header-actions .btn {
+            padding: 12px 20px;
             border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
         }
         
-        .add-item-btn:hover {
-            background: #1a9f47;
+        .header-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
+        
+        .header-actions .btn-primary {
+            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
+            color: white;
+        }
+        
+        .header-actions .btn-primary:hover {
+            background: linear-gradient(135deg, #1aa049 0%, #0193d1 100%);
+        }
+        
+        .header-actions .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+        }
+        
+        .header-actions .btn-secondary:hover {
+            background: linear-gradient(135deg, #5a6268 0%, #343a40 100%);
+        }
+        
         
         .modal {
             display: none;
@@ -300,8 +302,6 @@ foreach ($items as $item) {
             width: 90%;
             max-width: 600px;
             position: relative;
-            max-height: 80vh;
-            overflow-y: auto;
         }
         
         .close {
@@ -401,6 +401,41 @@ foreach ($items as $item) {
             cursor: pointer;
             font-size: 14px;
             margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .add-size-btn:hover {
+            background: #1a9f47;
+            transform: translateY(-1px);
+        }
+        
+        .remove-size-btn:hover {
+            background: #c82333;
+            transform: translateY(-1px);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e5e9;
+        }
+        
+        .form-actions .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .form-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         }
         
         .success-message {
@@ -436,28 +471,237 @@ foreach ($items as $item) {
             margin: 1px;
             font-size: 11px;
         }
+        
+        /* Responsive Button Design */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+            
+            .header-actions {
+                margin-left: 0;
+                justify-content: center;
+            }
+            
+            .header-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .action-buttons .btn {
+                width: 100%;
+                min-width: auto;
+            }
+        }
+        
+        /* Dark Mode Button Adjustments */
+        [data-theme="dark"] .header-actions .btn-primary {
+            background: linear-gradient(135deg, #27ae60 0%, #3498db 100%);
+        }
+        
+        [data-theme="dark"] .header-actions .btn-secondary {
+            background: linear-gradient(135deg, #7f8c8d 0%, #34495e 100%);
+        }
+        
+        [data-theme="dark"] .action-buttons .btn-warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+        }
+        
+        [data-theme="dark"] .action-buttons .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        /* Form Responsive Design */
+        @media (max-width: 768px) {
+            .form-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .form-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .size-variant-row {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            
+            .size-variant-row button {
+                width: 100%;
+            }
+        }
+        
+        /* Dark Mode Form Adjustments */
+        [data-theme="dark"] .form-actions {
+            border-top-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .size-variants-section {
+            background: var(--bg-secondary);
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="dark"] .size-variants-section h4 {
+            color: var(--text-primary);
+        }
+        
+        /* Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification.show {
+            transform: translateX(0);
+        }
+        
+        .notification.success {
+            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
+        }
+        
+        .notification.error {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+        }
+        
+        .notification.info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+        }
+        
+        /* Notification Popup Styles */
+        .notification-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10001;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .notification-popup.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .notification-popup-content {
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transform: scale(0.8);
+            transition: transform 0.3s ease;
+        }
+        
+        .notification-popup.show .notification-popup-content {
+            transform: scale(1);
+        }
+        
+        .notification-popup-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .notification-popup.success .notification-popup-icon {
+            color: #20bf55;
+        }
+        
+        .notification-popup.error .notification-popup-icon {
+            color: #dc3545;
+        }
+        
+        .notification-popup h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.5em;
+        }
+        
+        .notification-popup p {
+            margin: 0 0 25px 0;
+            color: #666;
+            font-size: 1.1em;
+            line-height: 1.5;
+        }
+        
+        .notification-popup .btn {
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            font-size: 1em;
+            transition: all 0.3s ease;
+        }
+        
+        .notification-popup .btn-primary {
+            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
+            color: white;
+        }
+        
+        .notification-popup .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(32, 191, 85, 0.3);
+        }
+        
+        /* Dark Mode Notifications */
+        [data-theme="dark"] .notification-popup-content {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+        
+        [data-theme="dark"] .notification-popup h3 {
+            color: var(--text-primary);
+        }
+        
+        [data-theme="dark"] .notification-popup p {
+            color: var(--text-secondary);
+        }
     </style>
-</head>
-<body>
-    <div class="admin-container">
-        <div class="admin-header">
+
+    <!-- Page Header -->
+    <div class="admin-section">
+        <div class="page-header">
             <div>
-                <h1>🍕 Manage Menu Items</h1>
+                <h2>🍕 Manage Menu Items</h2>
                 <p>Add, edit, and manage menu items with size variants</p>
             </div>
-            <div>
-                <button class="btn-admin btn-primary" onclick="showAddModal()">
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="showAddModal()">
                     <i class="fas fa-plus"></i> Add New Item
                 </button>
-                <button class="btn-admin btn-secondary" onclick="showSoftDeletedItems()">
+                <button class="btn btn-secondary" onclick="showSoftDeletedItems()">
                     <i class="fas fa-trash"></i> View Deleted Items
                 </button>
-                <a href="index.php" class="btn-admin btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
             </div>
         </div>
-        
+    
         <?php if (isset($_GET['success'])): ?>
             <div class="success-message"><?php echo htmlspecialchars($_GET['success']); ?></div>
         <?php endif; ?>
@@ -466,6 +710,7 @@ foreach ($items as $item) {
             <div class="error-message"><?php echo htmlspecialchars($_GET['error']); ?></div>
         <?php endif; ?>
         
+        <!-- Items Table -->
         <table class="items-table">
             <thead>
                 <tr>
@@ -505,15 +750,15 @@ foreach ($items as $item) {
                     </td>
                     <td><?php echo htmlspecialchars($item['description'] ?? ''); ?></td>
                     <td>
-                        <span class="btn-admin <?php echo $item['is_available'] ? 'btn-primary' : 'btn-secondary'; ?>" style="padding: 4px 8px; font-size: 12px;">
+                        <span class="btn <?php echo $item['is_available'] ? 'btn-primary' : 'btn-secondary'; ?>" style="padding: 4px 8px; font-size: 12px;">
                             <?php echo $item['is_available'] ? 'Available' : 'Unavailable'; ?>
                         </span>
                     </td>
                     <td>
-                        <button class="btn-admin btn-warning" onclick="showEditModal(<?php echo $item['id']; ?>, '<?php echo addslashes($item['name']); ?>', <?php echo $item['category_id']; ?>, <?php echo $item['price']; ?>, '<?php echo addslashes($item['description'] ?? ''); ?>', <?php echo $item['has_size_variants']; ?>, <?php echo htmlspecialchars(json_encode($item_size_variants[$item['id']] ?? [])); ?>)">
+                        <button class="btn btn-warning" onclick="showEditModal(<?php echo $item['id']; ?>, '<?php echo addslashes($item['name']); ?>', <?php echo $item['category_id']; ?>, <?php echo $item['price']; ?>, '<?php echo addslashes($item['description'] ?? ''); ?>', <?php echo $item['has_size_variants']; ?>, <?php echo htmlspecialchars(json_encode($item_size_variants[$item['id']] ?? [])); ?>)">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn-admin btn-danger" onclick="deleteItem(<?php echo $item['id']; ?>, '<?php echo addslashes($item['name']); ?>')">
+                        <button class="btn btn-danger" onclick="deleteItem(<?php echo $item['id']; ?>, '<?php echo addslashes($item['name']); ?>')">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
@@ -534,7 +779,7 @@ foreach ($items as $item) {
                 <input type="hidden" name="action" value="add">
                 <div class="form-group">
                     <label>Item Name</label>
-                    <input type="text" name="name" required>
+                    <input type="text" name="name" placeholder="Enter item name" required>
                 </div>
                 <div class="form-group">
                     <label>Category</label>
@@ -546,11 +791,11 @@ foreach ($items as $item) {
                 </div>
                 <div class="form-group">
                     <label>Price (PKR)</label>
-                    <input type="number" name="price" step="0.01" required>
+                    <input type="number" name="price" step="0.01" min="0" placeholder="Enter item price" required>
                 </div>
                 <div class="form-group">
                     <label>Description</label>
-                    <textarea name="description" rows="3"></textarea>
+                    <textarea name="description" rows="3" placeholder="Enter item description (optional)"></textarea>
                 </div>
                 <div class="form-group">
                     <div class="checkbox-group">
@@ -570,8 +815,8 @@ foreach ($items as $item) {
                      <button type="button" class="add-size-btn" onclick="addSizeVariant()">Add Another Size</button>
                  </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn-admin btn-primary">Add Item</button>
-                    <button type="button" class="btn-admin btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Item</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">Cancel</button>
                 </div>
             </form>
         </div>
@@ -621,8 +866,8 @@ foreach ($items as $item) {
                     <button type="button" class="add-size-btn" onclick="addEditSizeVariant()">Add Another Size</button>
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn-admin btn-primary">Update Item</button>
-                    <button type="button" class="btn-admin btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Item</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
                 </div>
             </form>
         </div>
@@ -660,14 +905,33 @@ foreach ($items as $item) {
         
         function deleteItem(id, name) {
             if (confirm('Are you sure you want to delete "' + name + '"?')) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.innerHTML = `
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="id" value="${id}">
-                `;
-                document.body.appendChild(form);
-                form.submit();
+                // Show loading state
+                showNotification('Deleting item...', 'info');
+                
+                fetch('delete_item.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'id=' + encodeURIComponent(id)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success popup
+                        showNotificationPopup(data.message, 'success', data.type, data.order_count);
+                        // Reload the page to update the table
+                        setTimeout(() => {
+                            location.reload();
+                        }, 2000);
+                    } else {
+                        showNotification('Error: ' + data.error, 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showNotification('Error deleting item', 'error');
+                });
             }
         }
         
@@ -914,6 +1178,67 @@ foreach ($items as $item) {
                  });
              }
          });
+         
+         // Notification functions
+         function showNotification(message, type) {
+             const notification = document.createElement('div');
+             notification.className = `notification ${type}`;
+             notification.textContent = message;
+             document.body.appendChild(notification);
+             
+             setTimeout(() => {
+                 notification.classList.add('show');
+             }, 100);
+             
+             setTimeout(() => {
+                 notification.classList.remove('show');
+                 setTimeout(() => {
+                     document.body.removeChild(notification);
+                 }, 300);
+             }, 3000);
+         }
+         
+         function showNotificationPopup(message, type, deleteType, orderCount) {
+             const popup = document.createElement('div');
+             popup.className = `notification-popup ${type}`;
+             
+             let icon = '✅';
+             let title = 'Success!';
+             
+             if (type === 'error') {
+                 icon = '❌';
+                 title = 'Error!';
+             } else if (deleteType === 'soft_delete') {
+                 icon = '⚠️';
+                 title = 'Item Soft Deleted';
+             } else if (deleteType === 'hard_delete') {
+                 icon = '🗑️';
+                 title = 'Item Deleted';
+             }
+             
+             popup.innerHTML = `
+                 <div class="notification-popup-content">
+                     <div class="notification-popup-icon">${icon}</div>
+                     <h3>${title}</h3>
+                     <p>${message}</p>
+                     <button class="btn btn-primary" onclick="closeNotificationPopup(this)">OK</button>
+                 </div>
+             `;
+             
+             document.body.appendChild(popup);
+             
+             setTimeout(() => {
+                 popup.classList.add('show');
+             }, 100);
+         }
+         
+         function closeNotificationPopup(button) {
+             const popup = button.closest('.notification-popup');
+             popup.classList.remove('show');
+             setTimeout(() => {
+                 document.body.removeChild(popup);
+             }, 300);
+         }
     </script>
-</body>
-</html> 
+
+<?php include 'includes/footer.php'; ?> 

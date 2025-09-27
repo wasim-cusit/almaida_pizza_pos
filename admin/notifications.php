@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+$page_title = "Notifications";
+
 // Handle AJAX requests
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     header('Content-Type: application/json');
@@ -89,14 +91,9 @@ $query = "SELECT n.*, b.name as branch_name
 $stmt = $db->prepare($query);
 $stmt->execute([$_SESSION['user_id'], $user_branch_id]);
 $notifications = $stmt->fetchAll();
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Notifications - Almaida POS</title>
+include 'includes/header.php';
+?>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -506,6 +503,4 @@ $notifications = $stmt->fetchAll();
                 console.error('Error refreshing notifications:', error);
             });
         }, 30000);
-    </script>
-</body>
-</html>
+<?php include 'includes/footer.php'; ?>

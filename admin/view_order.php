@@ -3,7 +3,12 @@ session_start();
 require_once '../config/database.php';
 
 // Check if user is logged in and is admin
-requireAdmin();
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
+    header('Location: ../login.php');
+    exit;
+}
+
+$page_title = "View Order";
 
 // Get order ID from request
 $order_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
@@ -44,13 +49,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
     header('Location: view_order.php?id=' . $order_id . '&success=Status updated');
     exit();
 }
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Details - US FOODS</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -308,6 +309,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status'])) {
                 </form>
             </div>
         </div>
-    </div>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

@@ -3,7 +3,12 @@ session_start();
 require_once '../config/database.php';
 
 // Check if user is logged in and is admin
-requireAdmin();
+if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
+    header('Location: ../login.php');
+    exit;
+}
+
+$page_title = "Manage Categories";
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -68,37 +73,10 @@ $query = "SELECT c.*, COUNT(i.id) as item_count
 $stmt = $db->prepare($query);
 $stmt->execute();
 $categories = $stmt->fetchAll();
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Categories - Fast Food POS</title>
-    <link rel="stylesheet" href="../assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Override main CSS for admin pages to enable scrolling */
-        body {
-            overflow: auto !important;
-            height: auto !important;
-            min-height: 100vh;
-        }
-        
-        .admin-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .admin-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 30px;
-            padding-bottom: 20px;
-            border-bottom: 2px solid #e0e0e0;
-        }
         
         .categories-table {
             width: 100%;
@@ -129,45 +107,113 @@ $categories = $stmt->fetchAll();
         .action-buttons {
             display: flex;
             gap: 8px;
+            align-items: center;
         }
         
-        .btn-admin {
-            padding: 8px 16px;
-            border: none;
+        .action-buttons .btn {
+            padding: 8px 12px;
             border-radius: 6px;
-            cursor: pointer;
-            font-weight: 500;
-            text-decoration: none;
-            display: inline-block;
-            text-align: center;
-            font-size: 14px;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 36px;
+            height: 36px;
         }
         
-        .btn-primary { background: #20bf55; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-warning { background: #ffc107; color: #212529; }
-        
-        .btn-admin:hover {
-            opacity: 0.9;
+        .action-buttons .btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
         }
         
-        .add-category-btn {
-            background: #20bf55;
+        .action-buttons .btn-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+            color: #212529;
+        }
+        
+        .action-buttons .btn-warning:hover {
+            background: linear-gradient(135deg, #e0a800 0%, #d39e00 100%);
+        }
+        
+        .action-buttons .btn-danger {
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
             color: white;
-            padding: 12px 24px;
-            border: none;
+        }
+        
+        .action-buttons .btn-danger:hover {
+            background: linear-gradient(135deg, #c82333 0%, #bd2130 100%);
+        }
+        
+        .action-buttons .btn-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+            color: white;
+        }
+        
+        .action-buttons .btn-info:hover {
+            background: linear-gradient(135deg, #138496 0%, #117a8b 100%);
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            margin-left: auto;
+        }
+        
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .page-header h2,
+        .page-header p {
+            margin: 0;
+        }
+        
+        .page-header > div:first-child {
+            flex: 1;
+        }
+        
+        .header-actions .btn {
+            padding: 12px 20px;
             border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            margin-bottom: 20px;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: all 0.3s ease;
             display: inline-flex;
             align-items: center;
             gap: 8px;
+            text-decoration: none;
+            border: none;
+            cursor: pointer;
         }
         
-        .add-category-btn:hover {
-            background: #1a9f47;
+        .header-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .header-actions .btn-primary {
+            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
+            color: white;
+        }
+        
+        .header-actions .btn-primary:hover {
+            background: linear-gradient(135deg, #1aa049 0%, #0193d1 100%);
+        }
+        
+        .header-actions .btn-secondary {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+            color: white;
+        }
+        
+        .header-actions .btn-secondary:hover {
+            background: linear-gradient(135deg, #5a6268 0%, #343a40 100%);
         }
         
         .modal {
@@ -257,22 +303,112 @@ $categories = $stmt->fetchAll();
             margin-bottom: 20px;
             border: 1px solid #ffeaa7;
         }
+        
+        /* Responsive Button Design */
+        @media (max-width: 768px) {
+            .page-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 20px;
+            }
+            
+            .header-actions {
+                margin-left: 0;
+                justify-content: center;
+            }
+            
+            .header-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .action-buttons {
+                flex-direction: column;
+                gap: 4px;
+            }
+            
+            .action-buttons .btn {
+                width: 100%;
+                min-width: auto;
+            }
+        }
+        
+        /* Dark Mode Button Adjustments */
+        [data-theme="dark"] .header-actions .btn-primary {
+            background: linear-gradient(135deg, #27ae60 0%, #3498db 100%);
+        }
+        
+        [data-theme="dark"] .header-actions .btn-secondary {
+            background: linear-gradient(135deg, #7f8c8d 0%, #34495e 100%);
+        }
+        
+        [data-theme="dark"] .action-buttons .btn-warning {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+        }
+        
+        [data-theme="dark"] .action-buttons .btn-danger {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        }
+        
+        [data-theme="dark"] .action-buttons .btn-info {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+        }
+        
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .form-actions .btn {
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .form-actions .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        /* Form Responsive Design */
+        @media (max-width: 768px) {
+            .form-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .form-actions .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+        
+        /* Dark Mode Form Adjustments */
+        [data-theme="dark"] .form-actions {
+            border-top-color: var(--border-color);
+        }
     </style>
-</head>
-<body>
-    <div class="admin-container">
-        <div class="admin-header">
+
+    <!-- Page Header -->
+    <div class="admin-section">
+        <div class="page-header">
             <div>
-                <h1>🍕 Manage Categories</h1>
+                <h2>🍕 Manage Categories</h2>
                 <p>Add, edit, and manage menu categories</p>
             </div>
-            <div>
-                <button class="btn-admin btn-primary" onclick="showAddModal()">
+            <div class="header-actions">
+                <button class="btn btn-primary" onclick="showAddModal()">
                     <i class="fas fa-plus"></i> Add New Category
                 </button>
-                <a href="index.php" class="btn-admin btn-secondary">
-                    <i class="fas fa-arrow-left"></i> Back to Dashboard
-                </a>
             </div>
         </div>
         
@@ -284,6 +420,7 @@ $categories = $stmt->fetchAll();
             <div class="error-message"><?php echo htmlspecialchars($_GET['error']); ?></div>
         <?php endif; ?>
         
+        <!-- Categories Table -->
         <table class="categories-table">
             <thead>
                 <tr>
@@ -301,17 +438,22 @@ $categories = $stmt->fetchAll();
                     <td><?php echo $category['display_order']; ?></td>
                     <td><?php echo $category['item_count']; ?> items</td>
                     <td>
-                        <span class="btn-admin <?php echo $category['is_active'] ? 'btn-primary' : 'btn-secondary'; ?>" style="padding: 4px 8px; font-size: 12px;">
+                        <span class="btn <?php echo $category['is_active'] ? 'btn-primary' : 'btn-secondary'; ?>" style="padding: 4px 8px; font-size: 12px;">
                             <?php echo $category['is_active'] ? 'Active' : 'Inactive'; ?>
                         </span>
                     </td>
                     <td>
-                        <button class="btn-admin btn-warning" onclick="showEditModal(<?php echo $category['id']; ?>, '<?php echo addslashes($category['name']); ?>', <?php echo $category['display_order']; ?>)">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="btn-admin btn-danger" onclick="deleteCategory(<?php echo $category['id']; ?>, '<?php echo addslashes($category['name']); ?>', <?php echo $category['item_count']; ?>)">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div class="action-buttons">
+                            <button class="btn btn-info" onclick="viewCategoryItems(<?php echo $category['id']; ?>, <?php echo json_encode($category['name']); ?>)" title="View Items">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-warning" onclick="showEditModal(<?php echo $category['id']; ?>, <?php echo json_encode($category['name']); ?>, <?php echo $category['display_order']; ?>)" title="Edit Category">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteCategory(<?php echo $category['id']; ?>, <?php echo json_encode($category['name']); ?>, <?php echo $category['item_count']; ?>)" title="Delete Category">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -337,8 +479,8 @@ $categories = $stmt->fetchAll();
                     <input type="number" name="display_order" value="0" min="0">
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn-admin btn-primary">Add Category</button>
-                    <button type="button" class="btn-admin btn-secondary" onclick="closeModal('addModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add Category</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('addModal')">Cancel</button>
                 </div>
             </form>
         </div>
@@ -363,14 +505,32 @@ $categories = $stmt->fetchAll();
                     <input type="number" name="display_order" id="edit_display_order" min="0">
                 </div>
                 <div class="form-actions">
-                    <button type="submit" class="btn-admin btn-primary">Update Category</button>
-                    <button type="button" class="btn-admin btn-secondary" onclick="closeModal('editModal')">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Category</button>
+                    <button type="button" class="btn btn-secondary" onclick="closeModal('editModal')">Cancel</button>
                 </div>
             </form>
         </div>
     </div>
     
+    <!-- View Category Items Modal -->
+    <div id="viewItemsModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3 id="viewItemsTitle">Category Items</h3>
+                <span class="close" onclick="closeModal('viewItemsModal')">&times;</span>
+            </div>
+            <div id="viewItemsContent">
+                <!-- Items will be loaded here -->
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeModal('viewItemsModal')">Close</button>
+            </div>
+        </div>
+    </div>
+    
     <script>
+        // Cache busting timestamp: <?php echo time(); ?>
+        
         function showAddModal() {
             document.getElementById('addModal').style.display = 'block';
         }
@@ -384,6 +544,80 @@ $categories = $stmt->fetchAll();
         
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
+        }
+        
+        function viewCategoryItems(categoryId, categoryName) {
+            document.getElementById('viewItemsTitle').textContent = categoryName + ' - Items';
+            document.getElementById('viewItemsContent').innerHTML = '<div style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading items...</div>';
+            document.getElementById('viewItemsModal').style.display = 'block';
+            
+            // Fetch category items
+            fetch('get_category_items.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'category_id=' + categoryId
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayCategoryItems(data.items);
+                } else {
+                    document.getElementById('viewItemsContent').innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> Error: ' + data.error + '</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('viewItemsContent').innerHTML = '<div style="text-align: center; padding: 20px; color: #dc3545;"><i class="fas fa-exclamation-triangle"></i> Error loading items</div>';
+            });
+        }
+        
+        function displayCategoryItems(items) {
+            let html = '';
+            
+            if (items.length === 0) {
+                html = '<div style="text-align: center; padding: 40px; color: #6c757d;"><i class="fas fa-box-open" style="font-size: 3em; margin-bottom: 15px;"></i><br>No items found in this category</div>';
+            } else {
+                html = '<div style="max-height: 400px; overflow-y: auto;">';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead style="background: #f8f9fa; position: sticky; top: 0;">';
+                html += '<tr>';
+                html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Name</th>';
+                html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Price</th>';
+                html += '<th style="padding: 12px; text-align: left; border-bottom: 1px solid #dee2e6;">Status</th>';
+                html += '</tr>';
+                html += '</thead>';
+                html += '<tbody>';
+                
+                items.forEach(item => {
+                    html += '<tr>';
+                    html += '<td style="padding: 12px; border-bottom: 1px solid #dee2e6;">' + item.name + '</td>';
+                    html += '<td style="padding: 12px; border-bottom: 1px solid #dee2e6;">';
+                    if (item.has_size_variants) {
+                        html += '<span style="color: #20bf55; font-weight: 600;">Multiple Sizes</span>';
+                    } else {
+                        html += 'PKR ' + parseFloat(item.price).toFixed(2);
+                    }
+                    html += '</td>';
+                    html += '<td style="padding: 12px; border-bottom: 1px solid #dee2e6;">';
+                    html += '<span class="btn ' + (item.is_available ? 'btn-primary' : 'btn-secondary') + '" style="padding: 4px 8px; font-size: 12px;">';
+                    html += item.is_available ? 'Available' : 'Unavailable';
+                    html += '</span>';
+                    html += '</td>';
+                    html += '</tr>';
+                });
+                
+                html += '</tbody>';
+                html += '</table>';
+                html += '</div>';
+                
+                html += '<div style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 5px; text-align: center;">';
+                html += '<strong>Total Items: ' + items.length + '</strong>';
+                html += '</div>';
+            }
+            
+            document.getElementById('viewItemsContent').innerHTML = html;
         }
         
         function deleteCategory(id, name, itemCount) {
@@ -414,5 +648,5 @@ $categories = $stmt->fetchAll();
             });
         }
     </script>
-</body>
-</html> 
+
+<?php include 'includes/footer.php'; ?> 

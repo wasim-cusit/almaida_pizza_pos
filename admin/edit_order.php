@@ -17,6 +17,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
     exit();
 }
 
+$page_title = "Edit Order";
+
 // Get order ID from URL
 $orderId = isset($_GET['id']) ? intval($_GET['id']) : 0;
 
@@ -162,42 +164,55 @@ $stmt->execute();
 $availableItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Helper function - sanitize is already defined in database.php
+
+include 'includes/header.php';
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Order - Fast Food POS</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8fafc;
-            color: #333;
-            line-height: 1.6;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .header {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
+<!-- Include Sidebar -->
+<?php include 'includes/sidebar.php'; ?>
+
+<!-- Main Content -->
+<div class="admin-container">
+    <div class="main-content" id="mainContent">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <div class="top-bar-left">
+                <button class="menu-toggle" id="menuToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="top-bar-title">
+                    <h1><?php echo $page_title; ?></h1>
+                    <div class="branch-name">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <?php echo htmlspecialchars($_SESSION['branch_name'] ?? 'Main Branch'); ?>
+                    </div>
+                </div>
+            </div>
+            <div class="top-bar-right">
+                <a href="../index.php" class="btn-top btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to POS
+                </a>
+                <a href="../logout.php" class="btn-top btn-danger">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </a>
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div class="admin-section">
+            <style>
+                .edit-order-container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+                
+                .order-header {
+                    background: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    margin-bottom: 20px;
+                }
         
         .header h1 {
             color: #20bf55;
@@ -408,15 +423,13 @@ $availableItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
             border-top: 2px solid #e2e8f0;
             padding-top: 10px;
             margin-top: 10px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1><i class="fas fa-edit"></i> Edit Order</h1>
-            <p>Order #<?php echo htmlspecialchars($order['order_number']); ?></p>
-        </div>
+            </style>
+            
+            <div class="edit-order-container">
+                <div class="order-header">
+                    <h1><i class="fas fa-edit"></i> Edit Order</h1>
+                    <p>Order #<?php echo htmlspecialchars($order['order_number']); ?></p>
+                </div>
         
         <?php if (isset($successMessage)): ?>
         <div class="alert alert-success">
@@ -597,8 +610,11 @@ $availableItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     <i class="fas fa-save"></i> Update Order
                 </button>
             </div>
-        </form>
+                </form>
+            </div>
+        </div>
     </div>
+</div>
     
     <script>
         let itemIndex = <?php echo count($orderItems); ?>;
@@ -702,6 +718,4 @@ $availableItems = $stmt->fetchAll(PDO::FETCH_ASSOC);
         document.addEventListener('DOMContentLoaded', function() {
             updateTotals();
         });
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

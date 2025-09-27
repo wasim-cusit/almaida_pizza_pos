@@ -8,6 +8,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] !== 'cashier' && $_S
     exit;
 }
 
+$page_title = "Cashier Dashboard";
+
 // Get statistics filtered by branch
 $stats = [];
 $branch_id = $_SESSION['branch_id'] ?? null;
@@ -67,13 +69,9 @@ $query .= " ORDER BY o.created_at DESC LIMIT 10";
 $stmt = $db->prepare($query);
 $stmt->execute($params);
 $recentOrders = $stmt->fetchAll();
+
+include 'includes/header.php';
 ?>
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>Cashier Dashboard - Fast Food POS</title>
     <link rel="stylesheet" href="../assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -501,6 +499,4 @@ $recentOrders = $stmt->fetchAll();
         setTimeout(function() {
             location.reload();
         }, 30000);
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

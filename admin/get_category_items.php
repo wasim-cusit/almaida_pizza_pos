@@ -11,29 +11,39 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
 
 header('Content-Type: application/json');
 
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['success' => false, 'error' => 'Invalid request method']);
+    exit;
+}
+
+$category_id = isset($_POST['category_id']) ? (int)$_POST['category_id'] : 0;
+
+if ($category_id <= 0) {
+    echo json_encode(['success' => false, 'error' => 'Invalid category ID']);
+    exit;
+}
+
 try {
-    // Get soft-deleted items with category names
+    // Get items in the category
     $query = "SELECT i.*, c.name as category_name 
               FROM items i 
               JOIN categories c ON i.category_id = c.id 
-              WHERE i.is_deleted = 1
-              ORDER BY i.updated_at DESC";
+              WHERE i.category_id = ? AND i.is_deleted = 0
+              ORDER BY i.name";
     
     $stmt = $db->prepare($query);
-    $stmt->execute();
-    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmt->execute([$category_id]);
+    $items = $stmt->fetchAll();
     
     echo json_encode([
         'success' => true,
-        'items' => $items,
-        'count' => count($items)
+        'items' => $items
     ]);
     
 } catch (Exception $e) {
-    http_response_code(500);
     echo json_encode([
         'success' => false,
         'error' => 'Database error: ' . $e->getMessage()
     ]);
 }
-?> 
+?>

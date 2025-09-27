@@ -17,6 +17,8 @@ if (!isset($_SESSION['user_id']) || ($_SESSION['user_role'] !== 'admin' && $_SES
     exit;
 }
 
+$page_title = "View Orders";
+
 // Get filter parameters
 $status = $_GET['status'] ?? '';
 $from_date = $_GET['from_date'] ?? '';
@@ -110,83 +112,53 @@ $statsQuery = "SELECT
 $statsStmt = $db->prepare($statsQuery);
 $statsStmt->execute($statsParams);
 $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
+include 'includes/header.php';
 ?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo isset($_SESSION['branch_name']) && $_SESSION['branch_name'] ? $_SESSION['branch_name'] . ' Branch - ' : ''; ?>View Orders - Admin Panel</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            overflow: hidden;
-        }
-        
-        .header {
+        /* View Orders Page Specific Styles */
+        .page-header {
             background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
             color: white;
             padding: 30px;
+            margin-bottom: 30px;
+            border-radius: 15px;
         }
         
-        .header-content {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-        
-        .header h1 {
+        .page-header h2 {
             font-size: 2.5em;
             margin-bottom: 10px;
             font-weight: 700;
         }
         
-        .header p {
+        .page-header p {
             font-size: 1.1em;
             opacity: 0.9;
         }
         
         .header-actions {
             display: flex;
-            gap: 10px;
+            justify-content: space-between;
+            align-items: center;
             flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 30px;
         }
         
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
-            padding: 30px;
-            background: #f8fafc;
+            margin-bottom: 30px;
         }
         
         .stat-card {
-            background: white;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
             padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
             text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
             border-left: 4px solid #20bf55;
         }
         
@@ -204,21 +176,41 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
         }
         
         .filters {
-            padding: 30px;
-            background: white;
-            border-bottom: 1px solid #e2e8f0;
+            margin-bottom: 30px;
         }
         
         .filter-form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            display: flex;
             gap: 15px;
             align-items: end;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            padding-bottom: 10px;
+        }
+        
+        .filter-form::-webkit-scrollbar {
+            height: 6px;
+        }
+        
+        .filter-form::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 3px;
+        }
+        
+        .filter-form::-webkit-scrollbar-thumb {
+            background: #20bf55;
+            border-radius: 3px;
+        }
+        
+        .filter-form::-webkit-scrollbar-thumb:hover {
+            background: #1aa049;
         }
         
         .form-group {
             display: flex;
             flex-direction: column;
+            min-width: 180px;
+            flex-shrink: 0;
         }
         
         .form-group label {
@@ -234,6 +226,7 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
             border-radius: 8px;
             font-size: 14px;
             transition: border-color 0.3s ease;
+            background: white;
         }
         
         .form-group input:focus,
@@ -269,7 +262,7 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
         }
         
         .orders-table {
-            padding: 30px;
+            margin-bottom: 30px;
         }
         
         .table-container {
@@ -367,30 +360,6 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
             color: #d1d5db;
         }
         
-        .pagination {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-            margin-top: 30px;
-        }
-        
-        .pagination a {
-            padding: 8px 12px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            text-decoration: none;
-            color: #374151;
-            transition: all 0.3s ease;
-        }
-        
-        .pagination a:hover,
-        .pagination a.active {
-            background: #20bf55;
-            color: white;
-            border-color: #20bf55;
-        }
-        
         .date-presets {
             margin-top: 15px;
             display: flex;
@@ -415,19 +384,28 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
         }
         
         .filter-form .form-group:last-child {
-            grid-column: 1 / -1;
-            display: flex;
-            gap: 10px;
-            justify-content: flex-start;
+            min-width: auto;
         }
         
+        .filter-form .btn {
+            width: 100%;
+            white-space: nowrap;
+        }
+        
+        /* Mobile Responsive */
         @media (max-width: 768px) {
             .stats-grid {
                 grid-template-columns: 1fr;
             }
             
             .filter-form {
-                grid-template-columns: 1fr;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .form-group {
+                min-width: 150px;
+                flex: 1;
             }
             
             .table-container {
@@ -438,73 +416,102 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
                 padding: 8px;
             }
         }
+        
+        /* Dark Mode Adjustments */
+        [data-theme="dark"] .page-header {
+            background: linear-gradient(135deg, #27ae60 0%, #3498db 100%);
+        }
+        
+        [data-theme="dark"] .stat-card {
+            background: rgba(45, 45, 45, 0.95);
+            border: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] .stat-card h3 {
+            color: #27ae60;
+        }
+        
+        [data-theme="dark"] .stat-card p {
+            color: var(--text-secondary);
+        }
+        
+        [data-theme="dark"] .form-group input,
+        [data-theme="dark"] .form-group select {
+            background: var(--bg-secondary);
+            border-color: var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        [data-theme="dark"] table {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] th {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] td {
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        [data-theme="dark"] tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        [data-theme="dark"] .status-badge {
+            color: var(--text-primary);
+        }
     </style>
-</head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="header-content">
-                <div>
-                    <h1><i class="fas fa-receipt"></i> Order Management</h1>
-                    <?php if (isset($_SESSION['branch_name']) && $_SESSION['branch_name']): ?>
-                        <h2 style="color: #20bf55; margin: 5px 0; font-size: 1.2em;">📍 <?php echo htmlspecialchars($_SESSION['branch_name']); ?> Branch</h2>
-                    <?php endif; ?>
-                    <p>View and manage all orders in the system</p>
-                </div>
-                <div class="header-actions">
-                    <?php if ($_SESSION['user_role'] === 'admin'): ?>
-                        <a href="index.php" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Admin Dashboard
-                        </a>
-                    <?php else: ?>
-                        <a href="cashier_dashboard.php" class="btn btn-secondary">
-                            <i class="fas fa-arrow-left"></i> Back to Cashier Dashboard
-                        </a>
-                    <?php endif; ?>
-                    <a href="../index.php" class="btn btn-primary">
-                        <i class="fas fa-home"></i> Back to POS
-                    </a>
-                </div>
-            </div>
+
+    <!-- Page Header -->
+    <div class="page-header">
+        <h2><i class="fas fa-receipt"></i> Order Management</h2>
+        <p>View and manage all orders in the system</p>
+    </div>
+    
+    
+    <!-- Filter Status -->
+    <?php if ($from_date || $to_date || $status || $search): ?>
+    <div class="admin-section">
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <span style="font-weight: 600; color: #374151;">Active Filters:</span>
+            <?php if ($from_date && $to_date): ?>
+                <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
+                    Date: <?php echo date('M d, Y', strtotime($from_date)); ?> - <?php echo date('M d, Y', strtotime($to_date)); ?>
+                </span>
+            <?php elseif ($from_date): ?>
+                <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
+                    From: <?php echo date('M d, Y', strtotime($from_date)); ?>
+                </span>
+            <?php elseif ($to_date): ?>
+                <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
+                    Until: <?php echo date('M d, Y', strtotime($to_date)); ?>
+                </span>
+            <?php endif; ?>
+            <?php if ($status): ?>
+                <span class="status-badge" style="background: #fef3c7; color: #92400e;">
+                    Status: <?php echo ucfirst($status); ?>
+                </span>
+            <?php endif; ?>
+            <?php if ($search): ?>
+                <span class="status-badge" style="background: #e0e7ff; color: #3730a3;">
+                    Search: "<?php echo htmlspecialchars($search); ?>"
+                </span>
+            <?php endif; ?>
+            <a href="view_orders.php" style="margin-left: auto; color: #ef4444; text-decoration: none; font-weight: 600;">
+                <i class="fas fa-times"></i> Clear All
+            </a>
         </div>
-        
-        <!-- Filter Status -->
-        <?php if ($from_date || $to_date || $status || $search): ?>
-        <div style="background: #f8fafc; padding: 15px 30px; border-bottom: 1px solid #e2e8f0;">
-            <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-                <span style="font-weight: 600; color: #374151;">Active Filters:</span>
-                <?php if ($from_date && $to_date): ?>
-                    <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
-                        Date: <?php echo date('M d, Y', strtotime($from_date)); ?> - <?php echo date('M d, Y', strtotime($to_date)); ?>
-                    </span>
-                <?php elseif ($from_date): ?>
-                    <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
-                        From: <?php echo date('M d, Y', strtotime($from_date)); ?>
-                    </span>
-                <?php elseif ($to_date): ?>
-                    <span class="status-badge" style="background: #dbeafe; color: #1e40af;">
-                        Until: <?php echo date('M d, Y', strtotime($to_date)); ?>
-                    </span>
-                <?php endif; ?>
-                <?php if ($status): ?>
-                    <span class="status-badge" style="background: #fef3c7; color: #92400e;">
-                        Status: <?php echo ucfirst($status); ?>
-                    </span>
-                <?php endif; ?>
-                <?php if ($search): ?>
-                    <span class="status-badge" style="background: #e0e7ff; color: #3730a3;">
-                        Search: "<?php echo htmlspecialchars($search); ?>"
-                    </span>
-                <?php endif; ?>
-                <a href="view_orders.php" style="margin-left: auto; color: #ef4444; text-decoration: none; font-weight: 600;">
-                    <i class="fas fa-times"></i> Clear All
-                </a>
-            </div>
-        </div>
-        <?php endif; ?>
-        
-        <!-- Statistics -->
+    </div>
+    <?php endif; ?>
+    
+    <!-- Statistics -->
+    <div class="admin-section">
+        <h2><i class="fas fa-chart-bar"></i> Order Statistics</h2>
         <div class="stats-grid">
             <div class="stat-card">
                 <h3><?php echo number_format($stats['total_orders']); ?></h3>
@@ -555,8 +562,11 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
                 ?></p>
             </div>
         </div>
-        
-        <!-- Filters -->
+    </div>
+    
+    <!-- Filters -->
+    <div class="admin-section">
+        <h2><i class="fas fa-filter"></i> Filter Orders</h2>
         <div class="filters">
             <form method="GET" class="filter-form">
                 <div class="form-group">
@@ -581,16 +591,23 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
                     <label for="to_date">To Date</label>
                     <input type="date" id="to_date" name="to_date" value="<?php echo htmlspecialchars($to_date); ?>">
                 </div>
-                <button type="submit" class="btn btn-primary">
+                <div class="form-group">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search"></i> Filter
                     </button>
+                </div>
+                <div class="form-group">
                     <a href="view_orders.php" class="btn btn-secondary">
                         <i class="fas fa-times"></i> Clear
                     </a>
+                </div>
             </form>
         </div>
-        
-        <!-- Orders Table -->
+    </div>
+    
+    <!-- Orders Table -->
+    <div class="admin-section">
+        <h2><i class="fas fa-list"></i> Orders List</h2>
         <div class="orders-table">
             <?php if (empty($orders)): ?>
             <div class="empty-state">
@@ -684,7 +701,7 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
             <?php endif; ?>
         </div>
     </div>
-    
+
     <script>
         function deleteOrder(orderId) {
             if (confirm('Are you sure you want to delete this order? This action cannot be undone.')) {
@@ -837,6 +854,4 @@ $stats = $statsStmt->fetch(PDO::FETCH_ASSOC);
             // Auto-submit the form
             document.querySelector('.filter-form').submit();
         }
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 

@@ -17,6 +17,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_role'] !== 'admin') {
     exit;
 }
 
+$page_title = "Order Details";
+
 // Get order ID
 $orderId = $_GET['id'] ?? 0;
 
@@ -71,14 +73,9 @@ $qrData = json_encode([
 ]);
 
 $qrCodeURL = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode($qrData);
-?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars($order['branch_name'] ?: 'Fast Food POS'); ?> - Order Details <?php echo htmlspecialchars($order['order_number']); ?></title>
+include 'includes/header.php';
+?>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
@@ -829,6 +826,4 @@ $qrCodeURL = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . 
                 });
             }
         }
-    </script>
-</body>
-</html> 
+<?php include 'includes/footer.php'; ?> 
